@@ -5,7 +5,6 @@ import Link from "next/link";
 import { CalendarX2, Sparkles, Users } from "lucide-react";
 import {
   DAYS,
-  formatMemberNames,
   formatTime12h,
   getEntryColorClasses,
   TIME_SLOTS,
@@ -27,7 +26,7 @@ interface SectionWeeklyViewProps {
   isAdmin: boolean;
 }
 
-const ROW_HEIGHT = 42;
+const ROW_HEIGHT = 28;
 
 export function SectionWeeklyView({
   semester,
@@ -104,10 +103,21 @@ export function SectionWeeklyView({
               {semester.name}
             </span>
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
-            <Users className="h-4 w-4" />
-            {formatMemberNames(activeSection.members)}
-          </p>
+          <div className="text-sm text-slate-500 dark:text-slate-400 flex items-start gap-1.5 mt-1">
+            <Users className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              {activeSection.members.length > 0 ? (
+                activeSection.members.map((m, idx) => (
+                  <span key={m.id}>
+                    {idx > 0 && <br />}
+                    {m.display_name}
+                  </span>
+                ))
+              ) : (
+                "Unassigned"
+              )}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -126,9 +136,6 @@ export function SectionWeeklyView({
             {sections.map((sec) => (
               <option key={sec.id} value={sec.id}>
                 {sec.code}
-                {sec.members.length > 0
-                  ? ` — ${formatMemberNames(sec.members)}`
-                  : ""}
               </option>
             ))}
           </select>
@@ -137,21 +144,21 @@ export function SectionWeeklyView({
 
       {/* Mon–Sat Weekly Grid */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[75vh] overflow-y-auto">
-          <div className="min-w-[1040px]">
+        <div className="overflow-x-auto max-h-[82vh] overflow-y-auto">
+          <div className="min-w-[860px]">
             <div
               className="sticky top-0 z-20 grid border-b border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur"
               style={{
-                gridTemplateColumns: "144px repeat(6, minmax(150px, 1fr))",
+                gridTemplateColumns: "122px repeat(6, minmax(122px, 1fr))",
               }}
             >
-              <div className="sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800 px-3 py-3 text-center text-xs font-extrabold uppercase tracking-wider">
+              <div className="sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800 px-2 py-2 text-center text-[11px] font-extrabold uppercase tracking-wider">
                 {activeSection.code}
               </div>
               {DAYS.map((day) => (
                 <div
                   key={day.value}
-                  className="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border-r last:border-r-0 border-slate-200 dark:border-slate-800"
+                  className="px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border-r last:border-r-0 border-slate-200 dark:border-slate-800"
                 >
                   {day.label}
                 </div>
@@ -161,7 +168,7 @@ export function SectionWeeklyView({
             <div
               className="grid"
               style={{
-                gridTemplateColumns: "144px repeat(6, minmax(150px, 1fr))",
+                gridTemplateColumns: "122px repeat(6, minmax(122px, 1fr))",
                 height: `${TOTAL_SLOTS * ROW_HEIGHT}px`,
               }}
             >
@@ -171,13 +178,14 @@ export function SectionWeeklyView({
                   <div
                     key={slot.index}
                     style={{ height: `${ROW_HEIGHT}px` }}
-                    className={`px-2 flex items-center justify-center text-[11px] font-medium border-b border-slate-100 dark:border-slate-800/80 tabular-nums ${
+                    title={slot.isBreak ? `${slot.label} (Lunch Time)` : slot.label}
+                    className={`px-1.5 flex items-center justify-center text-[10px] font-medium border-b border-slate-100 dark:border-slate-800/80 tabular-nums whitespace-nowrap ${
                       slot.isBreak
-                        ? "bg-[#D9EAD3] dark:bg-[#1E3A2A] text-emerald-950 dark:text-emerald-200 font-semibold"
+                        ? "bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold"
                         : "text-slate-500 dark:text-slate-400"
                     }`}
                   >
-                    {slot.label}
+                    <span>{slot.label}</span>
                   </div>
                 ))}
               </div>
@@ -188,7 +196,7 @@ export function SectionWeeklyView({
                 return (
                   <div
                     key={day.value}
-                    className="relative border-r last:border-r-0 border-slate-200/80 dark:border-slate-800"
+                    className="relative min-w-0 border-r last:border-r-0 border-slate-200/80 dark:border-slate-800"
                   >
                     {TIME_SLOTS.map((slot) => (
                       <div
@@ -196,7 +204,7 @@ export function SectionWeeklyView({
                         style={{ height: `${ROW_HEIGHT}px` }}
                         className={`border-b border-slate-100 dark:border-slate-800/70 ${
                           slot.isBreak
-                            ? "bg-[#D9EAD3]/80 dark:bg-[#1E3A2A]/70"
+                            ? "bg-emerald-50/60 dark:bg-emerald-950/25"
                             : ""
                         }`}
                       />
@@ -212,8 +220,8 @@ export function SectionWeeklyView({
                         timeToSlotIndex(entry.end_time)
                       );
                       const spanSlots = Math.max(1, endIdx - startIdx);
-                      const top = startIdx * ROW_HEIGHT + 2;
-                      const height = spanSlots * ROW_HEIGHT - 4;
+                      const top = startIdx * ROW_HEIGHT + 1;
+                      const height = spanSlots * ROW_HEIGHT - 2;
                       const colors = getEntryColorClasses(entry);
 
                       return (
@@ -222,23 +230,23 @@ export function SectionWeeklyView({
                           type="button"
                           onClick={() => setSelectedEntry(entry)}
                           style={{ top: `${top}px`, height: `${height}px` }}
-                          className={`absolute left-1 right-1 rounded-xl border p-2 text-center flex flex-col items-center justify-center gap-0.5 overflow-hidden shadow-xs hover:brightness-95 dark:hover:brightness-110 transition cursor-pointer ${colors.cardClass}`}
+                          className={`absolute left-0.5 right-0.5 rounded-lg border px-1.5 py-0.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-xs hover:brightness-95 dark:hover:brightness-110 transition cursor-pointer ${colors.cardClass}`}
                         >
-                          <span className="font-bold text-xs leading-tight">
+                          <span className="font-bold text-[11px] leading-tight truncate max-w-full">
                             {entry.course_code}
                           </span>
                           {entry.instructor && spanSlots >= 2 && (
-                            <span className="text-[11px] opacity-90 leading-tight line-clamp-2">
+                            <span className="text-[10px] opacity-90 leading-tight line-clamp-1 max-w-full">
                               {entry.instructor}
                             </span>
                           )}
-                          {entry.location && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wide opacity-85 leading-tight line-clamp-2">
+                          {entry.location && spanSlots >= 2 && (
+                            <span className="text-[9px] font-semibold uppercase tracking-wide opacity-85 leading-tight line-clamp-1 max-w-full">
                               {entry.location}
                             </span>
                           )}
                           {spanSlots === 1 && (
-                            <span className="text-[10px] opacity-75">
+                            <span className="text-[9px] opacity-75">
                               {formatTime12h(entry.start_time)}
                             </span>
                           )}

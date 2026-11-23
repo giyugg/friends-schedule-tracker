@@ -56,11 +56,12 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const isHomeRoute = pathname === "/";
   const isLoginRoute = pathname === "/login";
   const isChangePasswordRoute = pathname === "/change-password";
 
   if (!user) {
-    if (!isLoginRoute) {
+    if (!isLoginRoute && !isHomeRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
@@ -77,7 +78,7 @@ export async function proxy(request: NextRequest) {
   const mustChange = profile?.must_change_password ?? false;
   const isAdmin = profile?.role === "admin";
 
-  if (mustChange && !isChangePasswordRoute) {
+  if (mustChange && !isChangePasswordRoute && !isHomeRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/change-password";
     return NextResponse.redirect(url);
@@ -85,13 +86,13 @@ export async function proxy(request: NextRequest) {
 
   if (isLoginRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = mustChange ? "/change-password" : "/";
+    url.pathname = mustChange ? "/change-password" : "/daily";
     return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/admin") && !isAdmin) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/daily";
     return NextResponse.redirect(url);
   }
 

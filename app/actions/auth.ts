@@ -74,7 +74,7 @@ export async function loginAction(
     redirect("/change-password");
   }
 
-  redirect("/");
+  redirect("/daily");
 }
 
 export async function logoutAction() {
@@ -134,5 +134,5 @@ export async function changePasswordAction(
     return { error: profileError.message };
   }
 
-  redirect("/");
+  redirect("/daily");
 }

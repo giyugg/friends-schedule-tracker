@@ -35,7 +35,7 @@ export function LoginForm() {
           <div className="h-12 w-12 rounded-2xl bg-[#F19C99]/35 dark:bg-[#6E2C2A] border border-[#DF7A76]/50 flex items-center justify-center text-[#9E2A26] dark:text-[#FDE8E8] mb-3">
             <CalendarDays className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">COF Schedules</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Schedule TBA</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Sign in with the account created by your admin
           </p>

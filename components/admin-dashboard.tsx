@@ -113,12 +113,34 @@ export function AdminDashboard({
   const [editingEntryId, setEditingEntryId] = useState<string | undefined>();
   const [courseCode, setCourseCode] = useState("");
   const [instructor, setInstructor] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("ONLINE CLASS");
   const [startTime, setStartTime] = useState("07:00");
   const [endTime, setEndTime] = useState("09:00");
   const [category, setCategory] = useState<ScheduleCategory>("major");
   const [modality, setModality] = useState<ScheduleModality>("online");
   const [colorOverride, setColorOverride] = useState<ColorKey | "">("");
+
+  const handleModalityChange = (next: ScheduleModality) => {
+    setModality(next);
+    if (next === "online") {
+      setLocation("ONLINE CLASS");
+    } else if (location.trim().toUpperCase() === "ONLINE CLASS") {
+      setLocation("");
+    }
+  };
+
+  const handleCourseCodeChange = (next: string) => {
+    setCourseCode(next);
+    const normalized = next.trim().toUpperCase();
+    if (!normalized) return;
+    if (normalized.startsWith("INTERN")) {
+      setCategory("internship");
+    } else if (normalized.startsWith("I") || normalized.startsWith("C")) {
+      setCategory("major");
+    } else {
+      setCategory("minor");
+    }
+  };
 
   const activeSchedSectionId =
     sections.some((s) => s.id === schedSectionId)
@@ -140,7 +162,7 @@ export function AdminDashboard({
     setEditingEntryId(undefined);
     setCourseCode("");
     setInstructor("");
-    setLocation("");
+    setLocation("ONLINE CLASS");
     setStartTime("07:00");
     setEndTime("09:00");
     setCategory("major");
@@ -154,7 +176,9 @@ export function AdminDashboard({
     setSchedDay(entry.day_of_week);
     setCourseCode(entry.course_code);
     setInstructor(entry.instructor ?? "");
-    setLocation(entry.location ?? "");
+    setLocation(
+      entry.modality === "online" ? "ONLINE CLASS" : (entry.location ?? "")
+    );
     setStartTime(normalizeTime(entry.start_time));
     setEndTime(normalizeTime(entry.end_time));
     setCategory(entry.category);
@@ -398,7 +422,7 @@ export function AdminDashboard({
                       type="text"
                       required
                       value={courseCode}
-                      onChange={(e) => setCourseCode(e.target.value)}
+                      onChange={(e) => handleCourseCodeChange(e.target.value)}
                       placeholder="e.g., IS 207, IT 208*, INTERNSHIP"
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
                     />
@@ -419,14 +443,19 @@ export function AdminDashboard({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">
-                        Room / Modality Label
+                        Room
                       </label>
                       <input
                         type="text"
-                        value={location}
+                        value={modality === "online" ? "ONLINE CLASS" : location}
+                        disabled={modality === "online"}
                         onChange={(e) => setLocation(e.target.value)}
-                        placeholder="e.g., ONLINE CLASS, Prog Lab 2"
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                        placeholder="e.g., Prog Lab 2, ACAD 4"
+                        className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm ${
+                          modality === "online"
+                            ? "bg-slate-100 dark:bg-slate-800/70 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                            : "bg-white dark:bg-slate-950"
+                        }`}
                       />
                     </div>
                   </div>
@@ -456,7 +485,7 @@ export function AdminDashboard({
                       <select
                         value={modality}
                         onChange={(e) =>
-                          setModality(e.target.value as ScheduleModality)
+                          handleModalityChange(e.target.value as ScheduleModality)
                         }
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm"
                       >

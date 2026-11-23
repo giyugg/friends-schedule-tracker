@@ -2,9 +2,9 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
-  useEffect,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -21,32 +21,44 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 const STORAGE_KEY = "cof-schedule-theme";
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getClientSnapshot(): Theme {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function getServerSnapshot(): Theme {
+  return "light";
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    return document.documentElement.classList.contains("dark")
-      ? "dark"
-      : "light";
-  });
+  const theme = useSyncExternalStore(
+    subscribe,
+    getClientSnapshot,
+    getServerSnapshot
+  );
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
+  const toggleTheme = useCallback(() => {
+    const next: Theme = getClientSnapshot() === "light" ? "dark" : "light";
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
     } else {
-      root.classList.remove("dark");
+      document.documentElement.classList.remove("dark");
     }
     try {
-      localStorage.setItem(STORAGE_KEY, theme);
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // Ignore storage errors
     }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
+    listeners.forEach((listener) => listener());
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

@@ -32,7 +32,9 @@ interface DailyGridViewProps {
   isAdmin: boolean;
 }
 
-const ROW_HEIGHT = 44; // px per 30-min slot
+const ROW_HEIGHT = 24; // ultra-compact px per 30-min slot (all 7AM-8PM fits cleanly)
+const TIME_COL_WIDTH = 114;
+const SECTION_COL_WIDTH = 152;
 
 export function DailyGridView({
   semester,
@@ -220,38 +222,40 @@ export function DailyGridView({
               key={section.id}
               type="button"
               onClick={() => toggleSection(section.id)}
+              title={
+                section.members.length > 0
+                  ? formatMemberNames(section.members)
+                  : section.code
+              }
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
                 isVisible
                   ? "border-slate-300 dark:border-slate-700 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
                   : "border-slate-200 dark:border-slate-800 bg-transparent text-slate-400 line-through hover:text-slate-600"
               }`}
             >
-              {section.members.length > 0
-                ? `${formatMemberNames(section.members)} · ${section.code}`
-                : section.code}
+              {section.code}
             </button>
           );
         })}
       </div>
 
       {/* Main Side-by-Side Schedule Grid */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[75vh] overflow-y-auto">
+      <div className="w-fit max-w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[82vh] overflow-y-auto">
           <div
-            className="min-w-max"
             style={{
-              width: `${148 + visibleSections.length * 168}px`,
+              width: `${TIME_COL_WIDTH + visibleSections.length * SECTION_COL_WIDTH}px`,
             }}
           >
             {/* Sticky Header Row */}
             <div
               className="sticky top-0 z-20 grid border-b border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur"
               style={{
-                gridTemplateColumns: `148px repeat(${visibleSections.length}, minmax(168px, 1fr))`,
+                gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${visibleSections.length}, ${SECTION_COL_WIDTH}px)`,
               }}
             >
-              <div className="sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800 px-3 py-3 flex items-center justify-center">
-                <span className="text-xs font-extrabold tracking-wider uppercase text-slate-800 dark:text-slate-100">
+              <div className="sticky left-0 z-30 bg-slate-100/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800 px-2 py-2 flex items-center justify-center">
+                <span className="text-[11px] font-extrabold tracking-wider uppercase text-slate-800 dark:text-slate-100">
                   {DAYS.find((d) => d.value === selectedDay)?.label}
                 </span>
               </div>
@@ -263,15 +267,24 @@ export function DailyGridView({
                 return (
                   <div
                     key={section.id}
-                    className={`px-3 py-2.5 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800 ${
+                    className={`min-w-0 px-2 py-1.5 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800 flex flex-col justify-center ${
                       isMine ? "bg-rose-50/60 dark:bg-rose-950/30" : ""
                     }`}
                   >
                     <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {formatMemberNames(section.members)}
-                    </div>
-                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
                       {section.code}
+                    </div>
+                    <div className="text-[10px] leading-snug text-slate-500 dark:text-slate-400 mt-0.5">
+                      {section.members.length > 0 ? (
+                        section.members.map((m, idx) => (
+                          <span key={m.id}>
+                            {idx > 0 && <br />}
+                            {m.display_name}
+                          </span>
+                        ))
+                      ) : (
+                        <span>Unassigned</span>
+                      )}
                     </div>
                   </div>
                 );
@@ -282,7 +295,7 @@ export function DailyGridView({
             <div
               className="relative grid"
               style={{
-                gridTemplateColumns: `148px repeat(${visibleSections.length}, minmax(168px, 1fr))`,
+                gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${visibleSections.length}, ${SECTION_COL_WIDTH}px)`,
                 height: `${TOTAL_SLOTS * ROW_HEIGHT}px`,
               }}
             >
@@ -292,13 +305,14 @@ export function DailyGridView({
                   <div
                     key={slot.index}
                     style={{ height: `${ROW_HEIGHT}px` }}
-                    className={`px-2 flex items-center justify-center text-[11px] font-medium border-b border-slate-100 dark:border-slate-800/80 tabular-nums ${
+                    title={slot.isBreak ? `${slot.label} (Lunch Time)` : slot.label}
+                    className={`px-1.5 flex items-center justify-center gap-1 text-[10px] font-medium border-b border-slate-100 dark:border-slate-800/80 tabular-nums whitespace-nowrap ${
                       slot.isBreak
-                        ? "bg-[#D9EAD3] dark:bg-[#1E3A2A] text-emerald-950 dark:text-emerald-200 font-semibold"
+                        ? "bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold"
                         : "text-slate-500 dark:text-slate-400"
                     }`}
                   >
-                    {slot.label}
+                    <span>{slot.label}</span>
                   </div>
                 ))}
               </div>
@@ -309,7 +323,7 @@ export function DailyGridView({
                 return (
                   <div
                     key={section.id}
-                    className="relative border-r last:border-r-0 border-slate-200/80 dark:border-slate-800"
+                    className="relative min-w-0 border-r last:border-r-0 border-slate-200/80 dark:border-slate-800"
                   >
                     {/* Background 30-min cells */}
                     {TIME_SLOTS.map((slot) => (
@@ -318,7 +332,7 @@ export function DailyGridView({
                         style={{ height: `${ROW_HEIGHT}px` }}
                         className={`border-b border-slate-100 dark:border-slate-800/70 ${
                           slot.isBreak
-                            ? "bg-[#D9EAD3]/80 dark:bg-[#1E3A2A]/70"
+                            ? "bg-emerald-50/60 dark:bg-emerald-950/25"
                             : ""
                         }`}
                       />
@@ -335,8 +349,8 @@ export function DailyGridView({
                         timeToSlotIndex(entry.end_time)
                       );
                       const spanSlots = Math.max(1, endIdx - startIdx);
-                      const top = startIdx * ROW_HEIGHT + 2;
-                      const height = spanSlots * ROW_HEIGHT - 4;
+                      const top = startIdx * ROW_HEIGHT + 1;
+                      const height = spanSlots * ROW_HEIGHT - 2;
                       const colors = getEntryColorClasses(entry);
                       const isInternship = entry.category === "internship";
 
@@ -346,29 +360,29 @@ export function DailyGridView({
                           type="button"
                           onClick={() => setSelectedModal({ entry, section })}
                           style={{ top: `${top}px`, height: `${height}px` }}
-                          className={`absolute left-1 right-1 rounded-xl border p-2 text-center flex flex-col items-center justify-center gap-0.5 overflow-hidden shadow-xs hover:brightness-95 dark:hover:brightness-110 transition cursor-pointer ${colors.cardClass}`}
+                          className={`absolute left-0.5 right-0.5 rounded-lg border px-1.5 py-0.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-xs hover:brightness-95 dark:hover:brightness-110 transition cursor-pointer ${colors.cardClass}`}
                         >
                           <span
-                            className={`font-bold leading-tight ${
+                            className={`font-bold leading-tight truncate max-w-full ${
                               isInternship && spanSlots >= 6
-                                ? "text-base tracking-widest uppercase"
-                                : "text-xs"
+                                ? "text-sm tracking-widest uppercase"
+                                : "text-[11px]"
                             }`}
                           >
                             {entry.course_code}
                           </span>
                           {entry.instructor && spanSlots >= 2 && (
-                            <span className="text-[11px] opacity-90 leading-tight line-clamp-2">
+                            <span className="text-[10px] opacity-90 leading-tight line-clamp-1 max-w-full">
                               {entry.instructor}
                             </span>
                           )}
-                          {entry.location && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wide opacity-85 leading-tight line-clamp-2 mt-0.5">
+                          {entry.location && spanSlots >= 2 && (
+                            <span className="text-[9px] font-semibold uppercase tracking-wide opacity-85 leading-tight line-clamp-1 max-w-full">
                               {entry.location}
                             </span>
                           )}
                           {spanSlots === 1 && (
-                            <span className="text-[10px] opacity-75">
+                            <span className="text-[9px] opacity-75">
                               {formatTime12h(entry.start_time)}
                             </span>
                           )}
@@ -405,8 +419,8 @@ export function DailyGridView({
           </span>
         ))}
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border bg-[#D9EAD3] border-[#A8CE9C] dark:bg-[#1E3A2A] dark:border-[#2E5940]" />
-          1:00 PM – 2:00 PM Common Break
+          <span className="h-3 w-3 rounded border bg-emerald-50 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-800" />
+          12:00 PM – 1:00 PM Lunch Time
         </span>
       </div>
 

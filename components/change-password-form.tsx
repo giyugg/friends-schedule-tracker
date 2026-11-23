@@ -113,7 +113,7 @@ export function ChangePasswordForm({
         <div className="mt-5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           {!forced ? (
             <Link
-              href="/"
+              href="/daily"
               className="hover:text-slate-900 dark:hover:text-slate-200 underline underline-offset-2"
             >
               ← Back to schedules

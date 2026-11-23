@@ -21,6 +21,7 @@ export interface ActionResult {
 
 function revalidateAll() {
   revalidatePath("/");
+  revalidatePath("/daily");
   revalidatePath("/weekly");
   revalidatePath("/free-time");
   revalidatePath("/admin");
@@ -321,7 +322,10 @@ export async function saveScheduleEntryAction(input: {
     end_time: input.endTime,
     course_code: courseCode,
     instructor: input.instructor.trim() || null,
-    location: input.location.trim() || null,
+    location:
+      input.modality === "online"
+        ? "ONLINE CLASS"
+        : input.location.trim() || null,
     category: input.category,
     modality: input.modality,
     color_override: input.colorOverride || null,

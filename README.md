@@ -1,10 +1,11 @@
-# COF Schedules — Friends College Schedule Tracker
+# Schedule TBA — Friends College Schedule Tracker
 
 A modern, section-based college schedule tracker built with **Next.js 16**, **Tailwind CSS v4**, and **Supabase** to replace shared Google Sheets timetables.
 
 ## Features
 
-- **Side-by-Side Daily Grid (`/`):** View all friends/sections side by side from **7:00 AM – 8:00 PM** (Monday–Saturday) in 30-minute slots, complete with sticky time and section headers, search & column filtering, a live Philippine Time (`Asia/Manila`) indicator, and the `1:00 PM – 2:00 PM` green common-break highlight.
+- **Introduction Homepage (`/`):** Public landing page introducing Schedule TBA with quick access to sign in or open schedules.
+- **Side-by-Side Daily Grid (`/daily`):** View all friends/sections side by side from **7:00 AM – 8:00 PM** (Monday–Saturday) in 30-minute slots, complete with sticky time and section headers, search & column filtering, a live Philippine Time (`Asia/Manila`) indicator, and a visual `12:00 PM – 1:00 PM` Lunch Time highlight.
 - **Section Weekly View (`/weekly`):** Full Monday–Saturday timetable named by **section** (e.g., `BSIS 2B-G2`), defaulting to your own section with a quick switcher for any other section.
 - **Who's Free Now & Common Free Time Finder (`/free-time`):**
   - Live status cards showing who is currently **Free**, **In Class** (with room/modality and end time), or **Done Today**.

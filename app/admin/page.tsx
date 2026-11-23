@@ -6,7 +6,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
 import { SetupRequiredCard } from "@/components/setup-required-card";
-import { AppNav } from "@/components/app-nav";
+import { AppShell } from "@/components/app-shell";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { PageSkeleton } from "@/components/page-skeleton";
 
@@ -26,24 +26,21 @@ async function AdminContent({
   const bundle = await getScheduleBundle(params.semester);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <AppNav
-        profile={adminProfile}
+    <AppShell
+      profile={adminProfile}
+      semesters={bundle.semesters}
+      activeSemesterId={bundle.activeSemester?.id ?? null}
+    >
+      <AdminDashboard
+        currentAdminId={adminProfile.id}
         semesters={bundle.semesters}
-        activeSemesterId={bundle.activeSemester?.id ?? null}
+        activeSemester={bundle.activeSemester}
+        sections={bundle.sections}
+        entries={bundle.entries}
+        profiles={bundle.profiles}
+        hasServiceRoleKey={isSupabaseAdminConfigured()}
       />
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
-        <AdminDashboard
-          currentAdminId={adminProfile.id}
-          semesters={bundle.semesters}
-          activeSemester={bundle.activeSemester}
-          sections={bundle.sections}
-          entries={bundle.entries}
-          profiles={bundle.profiles}
-          hasServiceRoleKey={isSupabaseAdminConfigured()}
-        />
-      </main>
-    </div>
+    </AppShell>
   );
 }
 

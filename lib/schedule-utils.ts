@@ -21,8 +21,9 @@ export const END_HOUR = 20; // 8:00 PM
 export const SLOT_MINUTES = 30;
 export const TOTAL_SLOTS = ((END_HOUR - START_HOUR) * 60) / SLOT_MINUTES; // 26 slots
 
-// Lunch / common break highlight: 1:00 PM - 2:00 PM (slots 12 and 13)
-export const BREAK_SLOT_INDICES = new Set([12, 13]);
+// Lunch time visual highlight: 12:00 PM - 1:00 PM (slots 10 and 11)
+// Visual-only; does not restrict classes or affect free-time calculations.
+export const BREAK_SLOT_INDICES = new Set([10, 11]);
 
 export interface TimeSlot {
   index: number;

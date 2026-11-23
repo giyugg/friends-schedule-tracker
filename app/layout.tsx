@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "COF Schedules — Friends College Schedule Tracker",
+  title: "Schedule TBA",
   description:
     "Section-based college schedule tracker for friends: side-by-side daily grid, section weekly view, and common free time finder.",
 };
