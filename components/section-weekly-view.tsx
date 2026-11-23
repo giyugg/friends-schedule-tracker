@@ -24,6 +24,7 @@ interface SectionWeeklyViewProps {
   entries: ScheduleEntry[];
   currentUserId: string;
   isAdmin: boolean;
+  initialSectionId?: string;
 }
 
 const ROW_HEIGHT = 28;
@@ -34,13 +35,17 @@ export function SectionWeeklyView({
   entries,
   currentUserId,
   isAdmin,
+  initialSectionId,
 }: SectionWeeklyViewProps) {
   const defaultSectionId = useMemo(() => {
+    if (initialSectionId && sections.some((s) => s.id === initialSectionId)) {
+      return initialSectionId;
+    }
     const mine = sections.find((s) =>
       s.members.some((m) => m.id === currentUserId)
     );
     return mine?.id ?? sections[0]?.id ?? "";
-  }, [sections, currentUserId]);
+  }, [sections, currentUserId, initialSectionId]);
 
   const [selectedSectionId, setSelectedSectionId] = useState(defaultSectionId);
   const [selectedEntry, setSelectedEntry] = useState<ScheduleEntry | null>(

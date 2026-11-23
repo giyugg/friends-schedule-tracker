@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Coffee, MapPin, Radio, Users } from "lucide-react";
+import { Building2, CheckCircle2, Clock, Coffee, MapPin, Radio, Users } from "lucide-react";
 import {
   computeCommonFreeSlots,
   DAYS,
@@ -18,18 +18,21 @@ import type {
   ScheduleEntry,
   SectionWithMembers,
   Semester,
+  VisibilityGroupWithMembers,
 } from "@/lib/types";
 
 interface FreeTimeViewProps {
   semester: Semester | null;
   sections: SectionWithMembers[];
   entries: ScheduleEntry[];
+  groups?: VisibilityGroupWithMembers[];
 }
 
 export function FreeTimeView({
   semester,
   sections,
   entries,
+  groups = [],
 }: FreeTimeViewProps) {
   const [manilaNow, setManilaNow] = useState(() => getManilaNow());
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getDefaultDayOfWeek);
@@ -84,6 +87,20 @@ export function FreeTimeView({
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
+
+  const groupPresets = useMemo(
+    () =>
+      groups
+        .map((group) => {
+          const memberSet = new Set(group.memberIds);
+          const sectionIds = sections
+            .filter((sec) => sec.members.some((m) => memberSet.has(m.id)))
+            .map((sec) => sec.id);
+          return { group, sectionIds };
+        })
+        .filter((item) => item.sectionIds.length > 0),
+    [groups, sections]
+  );
 
   if (!semester || sections.length === 0) {
     return (
@@ -207,7 +224,7 @@ export function FreeTimeView({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setSelectedSectionIds(sections.map((s) => s.id))}
@@ -222,6 +239,43 @@ export function FreeTimeView({
             >
               Clear
             </button>
+            {groupPresets.length > 0 && (
+              <>
+                <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+                {groupPresets.map(({ group, sectionIds }) => {
+                  const isPresetActive =
+                    selectedSectionIds.length === sectionIds.length &&
+                    sectionIds.every((id) => selectedSectionIds.includes(id));
+                  const isOrg = group.type === "organization";
+                  const Icon = isOrg ? Building2 : Users;
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() => setSelectedSectionIds(sectionIds)}
+                      title={
+                        group.description ??
+                        `Select ${group.name}'s sections (${sectionIds.length})`
+                      }
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                        isPresetActive
+                          ? isOrg
+                            ? "border-sky-400 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-200"
+                            : "border-rose-400 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-200"
+                          : "border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-3 w-3 shrink-0 ${
+                          isOrg ? "text-sky-500" : "text-rose-500"
+                        }`}
+                      />
+                      <span>{group.name}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
 

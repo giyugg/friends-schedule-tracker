@@ -10,7 +10,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 async function DailyContent({
   searchParams,
 }: {
-  searchParams: Promise<{ semester?: string; group?: string }>;
+  searchParams: Promise<{ semester?: string; preset?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupRequiredCard />;
@@ -20,7 +20,11 @@ async function DailyContent({
     requireProfile(),
     searchParams,
   ]);
-  const bundle = await getScheduleBundle(params.semester, params.group);
+  const bundle = await getScheduleBundle(params.semester);
+  const visibleGroups =
+    profile.role === "admin"
+      ? bundle.visibilityGroups
+      : bundle.visibilityGroups.filter((g) => g.memberIds.includes(profile.id));
 
   return (
     <AppShell
@@ -28,7 +32,6 @@ async function DailyContent({
       semesters={bundle.semesters}
       activeSemesterId={bundle.activeSemester?.id ?? null}
       visibilityGroups={bundle.visibilityGroups}
-      activeGroupId={bundle.activeGroup?.id ?? null}
     >
       <DailyGridView
         semester={bundle.activeSemester}
@@ -36,7 +39,8 @@ async function DailyContent({
         entries={bundle.entries}
         currentUserId={profile.id}
         isAdmin={profile.role === "admin"}
-        activeGroup={bundle.activeGroup}
+        groups={visibleGroups}
+        initialGroupPresetId={params.preset}
       />
     </AppShell>
   );
@@ -47,7 +51,7 @@ export default function DailyPage(props: PageProps<"/daily">) {
     <Suspense fallback={<PageSkeleton />}>
       <DailyContent
         searchParams={
-          props.searchParams as Promise<{ semester?: string; group?: string }>
+          props.searchParams as Promise<{ semester?: string; preset?: string }>
         }
       />
     </Suspense>

@@ -28,7 +28,6 @@ interface AppShellProps {
   semesters: Semester[];
   activeSemesterId: string | null;
   visibilityGroups?: VisibilityGroupWithMembers[];
-  activeGroupId?: string | null;
   children: ReactNode;
 }
 
@@ -37,7 +36,6 @@ export function AppShell({
   semesters,
   activeSemesterId,
   visibilityGroups = [],
-  activeGroupId = null,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -48,26 +46,12 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const semesterParam = searchParams.get("semester");
-  const groupParam = searchParams.get("group");
 
   const buildHref = (path: string) => {
     const params = new URLSearchParams();
     if (semesterParam) params.set("semester", semesterParam);
-    if (groupParam && path !== "/admin") params.set("group", groupParam);
     const query = params.toString();
     return query ? `${path}?${query}` : path;
-  };
-
-  const handleGroupSelect = (nextGroupId: string | null) => {
-    const targetPath = pathname.startsWith("/admin") ? "/daily" : pathname;
-    const params = new URLSearchParams(searchParams.toString());
-    if (nextGroupId) {
-      params.set("group", nextGroupId);
-    } else {
-      params.delete("group");
-    }
-    const query = params.toString();
-    router.push(query ? `${targetPath}?${query}` : targetPath);
   };
 
   // Show groups the user is associated with (for admins, show all groups)
@@ -237,45 +221,22 @@ export function AppShell({
                 </div>
               )}
 
-              <button
-                type="button"
-                title={isCompact ? "All Visible" : undefined}
-                onClick={() => {
-                  handleGroupSelect(null);
-                  if (isMobile) setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                  isCompact
-                    ? "justify-center h-9 w-9 mx-auto"
-                    : "px-3 py-2 text-left"
-                } ${
-                  !activeGroupId && !pathname.startsWith("/admin")
-                    ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
-                }`}
-              >
-                <Users className="h-3.5 w-3.5 shrink-0" />
-                {!isCompact && <span className="truncate">All Visible</span>}
-              </button>
-
               {associatedGroups.map((group) => {
-                const isSelected = activeGroupId === group.id;
+                const groupHref = `/groups/${group.id}`;
+                const isSelected = pathname === groupHref;
                 const Icon =
                   group.type === "organization" ? Building2 : Users;
                 return (
-                  <button
+                  <Link
                     key={group.id}
-                    type="button"
+                    href={buildHref(groupHref)}
                     title={
                       isCompact
                         ? `${group.name} (${group.type})`
                         : group.description ?? group.name
                     }
-                    onClick={() => {
-                      handleGroupSelect(group.id);
-                      if (isMobile) setMobileOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={`w-full flex items-center gap-2.5 rounded-xl text-xs font-medium transition-colors ${
                       isCompact
                         ? "justify-center h-9 w-9 mx-auto"
                         : "px-3 py-2 text-left"
@@ -300,7 +261,7 @@ export function AppShell({
                         </span>
                       </>
                     )}
-                  </button>
+                  </Link>
                 );
               })}
             </div>

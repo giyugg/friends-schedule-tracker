@@ -19,12 +19,20 @@ export interface ScheduleBundle {
   entries: ScheduleEntry[];
   profiles: Profile[];
   visibilityGroups: VisibilityGroupWithMembers[];
-  activeGroup: VisibilityGroupWithMembers | null;
+}
+
+export interface GroupDashboardBundle {
+  semesters: Semester[];
+  activeSemester: Semester | null;
+  visibilityGroups: VisibilityGroupWithMembers[];
+  group: VisibilityGroupWithMembers;
+  members: Profile[];
+  sections: SectionWithMembers[];
+  entries: ScheduleEntry[];
 }
 
 export async function getScheduleBundle(
-  requestedSemesterId?: string,
-  requestedGroupId?: string
+  requestedSemesterId?: string
 ): Promise<ScheduleBundle> {
   if (!isSupabaseConfigured()) {
     return {
@@ -34,7 +42,6 @@ export async function getScheduleBundle(
       entries: [],
       profiles: [],
       visibilityGroups: [],
-      activeGroup: null,
     };
   }
 
@@ -86,10 +93,6 @@ export async function getScheduleBundle(
     memberIds: membersByGroup.get(g.id) ?? [],
   }));
 
-  const activeGroup = requestedGroupId
-    ? (visibilityGroups.find((g) => g.id === requestedGroupId) ?? null)
-    : null;
-
   const activeSemester =
     (requestedSemesterId
       ? semesters.find((s) => s.id === requestedSemesterId)
@@ -107,7 +110,6 @@ export async function getScheduleBundle(
       entries: [],
       profiles,
       visibilityGroups,
-      activeGroup,
     };
   }
 
@@ -129,7 +131,6 @@ export async function getScheduleBundle(
       entries: [],
       profiles,
       visibilityGroups,
-      activeGroup,
     };
   }
 
@@ -164,27 +165,14 @@ export async function getScheduleBundle(
     membersBySection.set(row.section_id, list);
   }
 
-  const allSections: SectionWithMembers[] = rawSections.map((section) => ({
+  const sections: SectionWithMembers[] = rawSections.map((section) => ({
     ...section,
     members: (membersBySection.get(section.id) ?? []).sort((a, b) =>
       a.display_name.localeCompare(b.display_name)
     ),
   }));
 
-  let sections = allSections;
-  let entries = (entriesData ?? []) as ScheduleEntry[];
-
-  if (activeGroup) {
-    const groupMemberSet = new Set(activeGroup.memberIds);
-    sections = allSections
-      .map((sec) => ({
-        ...sec,
-        members: sec.members.filter((m) => groupMemberSet.has(m.id)),
-      }))
-      .filter((sec) => sec.members.length > 0);
-    const visibleSectionIds = new Set(sections.map((s) => s.id));
-    entries = entries.filter((e) => visibleSectionIds.has(e.section_id));
-  }
+  const entries = (entriesData ?? []) as ScheduleEntry[];
 
   return {
     semesters,
@@ -193,6 +181,41 @@ export async function getScheduleBundle(
     entries,
     profiles,
     visibilityGroups,
-    activeGroup,
+  };
+}
+
+export async function getGroupDashboardBundle(
+  groupId: string,
+  requestedSemesterId?: string
+): Promise<GroupDashboardBundle | null> {
+  const bundle = await getScheduleBundle(requestedSemesterId);
+  const group = bundle.visibilityGroups.find((g) => g.id === groupId);
+  if (!group) return null;
+
+  const groupMemberSet = new Set(group.memberIds);
+  const members = bundle.profiles
+    .filter((p) => groupMemberSet.has(p.id))
+    .sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+  const sections = bundle.sections
+    .map((sec) => ({
+      ...sec,
+      members: sec.members.filter((m) => groupMemberSet.has(m.id)),
+    }))
+    .filter((sec) => sec.members.length > 0);
+
+  const visibleSectionIds = new Set(sections.map((s) => s.id));
+  const entries = bundle.entries.filter((e) =>
+    visibleSectionIds.has(e.section_id)
+  );
+
+  return {
+    semesters: bundle.semesters,
+    activeSemester: bundle.activeSemester,
+    visibilityGroups: bundle.visibilityGroups,
+    group,
+    members,
+    sections,
+    entries,
   };
 }
