@@ -5,6 +5,7 @@ import { Building2, CheckCircle2, Clock, Coffee, MapPin, Radio, Users } from "lu
 import {
   computeCommonFreeSlots,
   DAYS,
+  formatCompactDuration,
   formatDuration,
   formatMemberNames,
   formatTime12h,
@@ -173,7 +174,7 @@ export function FreeTimeView({
 
                 <div className="text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-slate-800">
                   {status.state === "in_class" && (
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <div className="font-semibold text-slate-900 dark:text-slate-100">
                         {status.currentEntry.course_code}
                       </div>
@@ -184,18 +185,39 @@ export function FreeTimeView({
                             status.currentEntry.modality.toUpperCase()}
                         </span>
                         <span>·</span>
-                        <span>
+                        <span className="shrink-0">
                           until {formatTime12h(status.currentEntry.end_time)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="truncate">
+                          Free in{" "}
+                          {formatCompactDuration(status.minutesUntilFree)}
+                          {status.hasBackToBack
+                            ? ` (back-to-back til ${formatTime12h(status.freeAtTime)})`
+                            : ""}
                         </span>
                       </div>
                     </div>
                   )}
                   {status.state === "free" &&
                     (status.nextEntry ? (
-                      <span>
-                        Next: <strong>{status.nextEntry.course_code}</strong> at{" "}
-                        {formatTime12h(status.nextEntry.start_time)}
-                      </span>
+                      <div className="space-y-1">
+                        <div>
+                          Next: <strong>{status.nextEntry.course_code}</strong>{" "}
+                          at {formatTime12h(status.nextEntry.start_time)}
+                        </div>
+                        {status.minutesUntilNext !== null && (
+                          <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <Clock className="h-3 w-3 shrink-0" />
+                            <span>
+                              Next class in{" "}
+                              {formatCompactDuration(status.minutesUntilNext)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <span>No classes scheduled today</span>
                     ))}

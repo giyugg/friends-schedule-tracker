@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarDays,
   CalendarX2,
+  Clock,
   LayoutGrid,
   MapPin,
   Radio,
@@ -16,6 +17,7 @@ import {
 import {
   COLOR_PRESETS,
   DAYS,
+  formatCompactDuration,
   formatTime12h,
   getDefaultDayOfWeek,
   getEntryColorClasses,
@@ -345,46 +347,69 @@ export function GroupDashboardView({
                     )}
                   </div>
 
-                  <div className="text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-slate-800 truncate flex items-center gap-1">
+                  <div className="text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
                     {!status && (
-                      <span className="text-slate-400">
+                      <span className="text-slate-400 block truncate">
                         Not assigned to a section this semester
                       </span>
                     )}
                     {status?.state === "in_class" && (
                       <>
-                        <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-                        <span className="font-semibold">
-                          {status.currentEntry.course_code}
-                        </span>
-                        <span className="text-slate-400">·</span>
-                        <span className="truncate">
-                          {status.currentEntry.location ||
-                            status.currentEntry.modality.toUpperCase()}
-                        </span>
-                        <span className="text-slate-400 shrink-0">
-                          (til {formatTime12h(status.currentEntry.end_time)})
-                        </span>
+                        <div className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                          <span className="font-semibold">
+                            {status.currentEntry.course_code}
+                          </span>
+                          <span className="text-slate-400">·</span>
+                          <span className="truncate">
+                            {status.currentEntry.location ||
+                              status.currentEntry.modality.toUpperCase()}
+                          </span>
+                          <span className="text-slate-400 shrink-0">
+                            (til {formatTime12h(status.currentEntry.end_time)})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            Free in{" "}
+                            {formatCompactDuration(status.minutesUntilFree)}
+                            {status.hasBackToBack
+                              ? ` (back-to-back til ${formatTime12h(status.freeAtTime)})`
+                              : ""}
+                          </span>
+                        </div>
                       </>
                     )}
                     {status?.state === "free" &&
                       (status.nextEntry ? (
-                        <span className="truncate">
-                          Next:{" "}
-                          <strong>{status.nextEntry.course_code}</strong> at{" "}
-                          {formatTime12h(status.nextEntry.start_time)} (
-                          {status.nextEntry.location ||
-                            status.nextEntry.modality.toUpperCase()}
-                          )
-                        </span>
+                        <>
+                          <div className="truncate">
+                            Next:{" "}
+                            <strong>{status.nextEntry.course_code}</strong> at{" "}
+                            {formatTime12h(status.nextEntry.start_time)} (
+                            {status.nextEntry.location ||
+                              status.nextEntry.modality.toUpperCase()}
+                            )
+                          </div>
+                          {status.minutesUntilNext !== null && (
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span>
+                                Next class in{" "}
+                                {formatCompactDuration(status.minutesUntilNext)}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       ) : (
-                        <span>Free all day</span>
+                        <span className="block">Free all day</span>
                       ))}
                     {status?.state === "done" && (
-                      <span>Done with classes today</span>
+                      <span className="block">Done with classes today</span>
                     )}
                     {status?.state === "sunday" && (
-                      <span>No Sunday classes</span>
+                      <span className="block">No Sunday classes</span>
                     )}
                   </div>
                 </div>

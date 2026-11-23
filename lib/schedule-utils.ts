@@ -206,6 +206,21 @@ export function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
+export function formatCompactDuration(minutes: number): string {
+  const safe = Math.max(1, Math.round(minutes));
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function minutesToHHMM(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function getManilaNow(date = new Date()): {
   dayOfWeek: number; // 0=Sun, 1=Mon..6=Sat
   minutesFromMidnight: number;
@@ -294,8 +309,18 @@ export function computeCommonFreeSlots(
 }
 
 export type LiveStatus =
-  | { state: "in_class"; currentEntry: ScheduleEntry }
-  | { state: "free"; nextEntry: ScheduleEntry | null }
+  | {
+      state: "in_class";
+      currentEntry: ScheduleEntry;
+      minutesUntilFree: number;
+      freeAtTime: string;
+      hasBackToBack: boolean;
+    }
+  | {
+      state: "free";
+      nextEntry: ScheduleEntry | null;
+      minutesUntilNext: number | null;
+    }
   | { state: "done" }
   | { state: "sunday" };
 
@@ -312,16 +337,37 @@ export function getLiveSectionStatus(
     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
 
   if (todaysEntries.length === 0) {
-    return { state: "free", nextEntry: null };
+    return { state: "free", nextEntry: null, minutesUntilNext: null };
   }
 
   const nowMins = manilaNow.minutesFromMidnight;
 
-  for (const entry of todaysEntries) {
+  for (let i = 0; i < todaysEntries.length; i++) {
+    const entry = todaysEntries[i];
     const start = timeToMinutes(entry.start_time);
     const end = timeToMinutes(entry.end_time);
     if (nowMins >= start && nowMins < end) {
-      return { state: "in_class", currentEntry: entry };
+      // Chain any back-to-back or overlapping classes so we report when truly free
+      let freeAtMins = end;
+      for (let j = i + 1; j < todaysEntries.length; j++) {
+        const nextStart = timeToMinutes(todaysEntries[j].start_time);
+        const nextEnd = timeToMinutes(todaysEntries[j].end_time);
+        if (nextStart <= freeAtMins) {
+          if (nextEnd > freeAtMins) {
+            freeAtMins = nextEnd;
+          }
+        } else {
+          break;
+        }
+      }
+
+      return {
+        state: "in_class",
+        currentEntry: entry,
+        minutesUntilFree: Math.max(1, freeAtMins - nowMins),
+        freeAtTime: minutesToHHMM(freeAtMins),
+        hasBackToBack: freeAtMins > end,
+      };
     }
   }
 
@@ -330,7 +376,14 @@ export function getLiveSectionStatus(
   );
 
   if (nextEntry) {
-    return { state: "free", nextEntry };
+    return {
+      state: "free",
+      nextEntry,
+      minutesUntilNext: Math.max(
+        1,
+        timeToMinutes(nextEntry.start_time) - nowMins
+      ),
+    };
   }
 
   return { state: "done" };
