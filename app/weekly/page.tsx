@@ -10,7 +10,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 async function WeeklyContent({
   searchParams,
 }: {
-  searchParams: Promise<{ semester?: string }>;
+  searchParams: Promise<{ semester?: string; group?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupRequiredCard />;
@@ -20,13 +20,15 @@ async function WeeklyContent({
     requireProfile(),
     searchParams,
   ]);
-  const bundle = await getScheduleBundle(params.semester);
+  const bundle = await getScheduleBundle(params.semester, params.group);
 
   return (
     <AppShell
       profile={profile}
       semesters={bundle.semesters}
       activeSemesterId={bundle.activeSemester?.id ?? null}
+      visibilityGroups={bundle.visibilityGroups}
+      activeGroupId={bundle.activeGroup?.id ?? null}
     >
       <SectionWeeklyView
         semester={bundle.activeSemester}
@@ -43,7 +45,9 @@ export default function WeeklyPage(props: PageProps<"/weekly">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <WeeklyContent
-        searchParams={props.searchParams as Promise<{ semester?: string }>}
+        searchParams={
+          props.searchParams as Promise<{ semester?: string; group?: string }>
+        }
       />
     </Suspense>
   );

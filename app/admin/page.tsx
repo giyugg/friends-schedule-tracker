@@ -30,6 +30,7 @@ async function AdminContent({
       profile={adminProfile}
       semesters={bundle.semesters}
       activeSemesterId={bundle.activeSemester?.id ?? null}
+      visibilityGroups={bundle.visibilityGroups}
     >
       <AdminDashboard
         currentAdminId={adminProfile.id}
@@ -38,6 +39,7 @@ async function AdminContent({
         sections={bundle.sections}
         entries={bundle.entries}
         profiles={bundle.profiles}
+        visibilityGroups={bundle.visibilityGroups}
         hasServiceRoleKey={isSupabaseAdminConfigured()}
       />
     </AppShell>

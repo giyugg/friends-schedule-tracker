@@ -72,3 +72,17 @@ export interface FreeWindow {
   endTime: string;
   durationMinutes: number;
 }
+
+export type VisibilityGroupType = "circle" | "organization";
+
+export interface VisibilityGroup {
+  id: string;
+  name: string;
+  type: VisibilityGroupType;
+  description: string | null;
+  created_at: string;
+}
+
+export interface VisibilityGroupWithMembers extends VisibilityGroup {
+  memberIds: string[];
+}

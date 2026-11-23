@@ -10,7 +10,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 async function FreeTimeContent({
   searchParams,
 }: {
-  searchParams: Promise<{ semester?: string }>;
+  searchParams: Promise<{ semester?: string; group?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupRequiredCard />;
@@ -20,13 +20,15 @@ async function FreeTimeContent({
     requireProfile(),
     searchParams,
   ]);
-  const bundle = await getScheduleBundle(params.semester);
+  const bundle = await getScheduleBundle(params.semester, params.group);
 
   return (
     <AppShell
       profile={profile}
       semesters={bundle.semesters}
       activeSemesterId={bundle.activeSemester?.id ?? null}
+      visibilityGroups={bundle.visibilityGroups}
+      activeGroupId={bundle.activeGroup?.id ?? null}
     >
       <FreeTimeView
         semester={bundle.activeSemester}
@@ -41,7 +43,9 @@ export default function FreeTimePage(props: PageProps<"/free-time">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <FreeTimeContent
-        searchParams={props.searchParams as Promise<{ semester?: string }>}
+        searchParams={
+          props.searchParams as Promise<{ semester?: string; group?: string }>
+        }
       />
     </Suspense>
   );

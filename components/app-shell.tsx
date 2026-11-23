@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Building2,
   CalendarDays,
   Clock,
   KeyRound,
@@ -15,16 +16,19 @@ import {
   PanelLeftOpen,
   Shield,
   Sun,
+  Users,
   X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { useTheme } from "./theme-provider";
-import type { Profile, Semester } from "@/lib/types";
+import type { Profile, Semester, VisibilityGroupWithMembers } from "@/lib/types";
 
 interface AppShellProps {
   profile: Profile;
   semesters: Semester[];
   activeSemesterId: string | null;
+  visibilityGroups?: VisibilityGroupWithMembers[];
+  activeGroupId?: string | null;
   children: ReactNode;
 }
 
@@ -32,6 +36,8 @@ export function AppShell({
   profile,
   semesters,
   activeSemesterId,
+  visibilityGroups = [],
+  activeGroupId = null,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -42,8 +48,33 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const semesterParam = searchParams.get("semester");
-  const buildHref = (path: string) =>
-    semesterParam ? `${path}?semester=${semesterParam}` : path;
+  const groupParam = searchParams.get("group");
+
+  const buildHref = (path: string) => {
+    const params = new URLSearchParams();
+    if (semesterParam) params.set("semester", semesterParam);
+    if (groupParam && path !== "/admin") params.set("group", groupParam);
+    const query = params.toString();
+    return query ? `${path}?${query}` : path;
+  };
+
+  const handleGroupSelect = (nextGroupId: string | null) => {
+    const targetPath = pathname.startsWith("/admin") ? "/daily" : pathname;
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextGroupId) {
+      params.set("group", nextGroupId);
+    } else {
+      params.delete("group");
+    }
+    const query = params.toString();
+    router.push(query ? `${targetPath}?${query}` : targetPath);
+  };
+
+  // Show groups the user is associated with (for admins, show all groups)
+  const associatedGroups =
+    profile.role === "admin"
+      ? visibilityGroups
+      : visibilityGroups.filter((g) => g.memberIds.includes(profile.id));
 
   const navItems = [
     { href: "/daily", label: "Daily Grid", icon: LayoutGrid },
@@ -164,34 +195,116 @@ export function AppShell({
         )}
 
         {/* Vertical Navigation */}
-        <nav className="flex-1 px-2.5 py-4 space-y-1">
-          {!isCompact && (
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">
-              Views
-            </div>
-          )}
-          {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={buildHref(item.href)}
-                title={isCompact ? item.label : undefined}
-                onClick={() => isMobile && setMobileOpen(false)}
-                className={`flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isCompact ? "justify-center h-10 w-10 mx-auto" : "px-3 py-2.5"
+        <nav className="flex-1 overflow-y-auto px-2.5 py-4 space-y-5">
+          <div className="space-y-1">
+            {!isCompact && (
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">
+                Views
+              </div>
+            )}
+            {navItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={buildHref(item.href)}
+                  title={isCompact ? item.label : undefined}
+                  onClick={() => isMobile && setMobileOpen(false)}
+                  className={`flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    isCompact
+                      ? "justify-center h-10 w-10 mx-auto"
+                      : "px-3 py-2.5"
+                  } ${
+                    isActive
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!isCompact && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Associated Circles & Organizations */}
+          {associatedGroups.length > 0 && (
+            <div className="space-y-1 pt-3 border-t border-slate-200/70 dark:border-slate-800/80">
+              {!isCompact && (
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">
+                  {profile.role === "admin" ? "Groups" : "My Groups"}
+                </div>
+              )}
+
+              <button
+                type="button"
+                title={isCompact ? "All Visible" : undefined}
+                onClick={() => {
+                  handleGroupSelect(null);
+                  if (isMobile) setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                  isCompact
+                    ? "justify-center h-9 w-9 mx-auto"
+                    : "px-3 py-2 text-left"
                 } ${
-                  isActive
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                  !activeGroupId && !pathname.startsWith("/admin")
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!isCompact && <span className="truncate">{item.label}</span>}
-              </Link>
-            );
-          })}
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                {!isCompact && <span className="truncate">All Visible</span>}
+              </button>
+
+              {associatedGroups.map((group) => {
+                const isSelected = activeGroupId === group.id;
+                const Icon =
+                  group.type === "organization" ? Building2 : Users;
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    title={
+                      isCompact
+                        ? `${group.name} (${group.type})`
+                        : group.description ?? group.name
+                    }
+                    onClick={() => {
+                      handleGroupSelect(group.id);
+                      if (isMobile) setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                      isCompact
+                        ? "justify-center h-9 w-9 mx-auto"
+                        : "px-3 py-2 text-left"
+                    } ${
+                      isSelected
+                        ? "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-200 font-semibold border border-rose-200/80 dark:border-rose-900/70"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        group.type === "organization"
+                          ? "text-sky-500"
+                          : "text-rose-500"
+                      }`}
+                    />
+                    {!isCompact && (
+                      <>
+                        <span className="truncate flex-1">{group.name}</span>
+                        <span className="text-[10px] opacity-65 shrink-0">
+                          {group.memberIds.length}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         {/* Footer: Profile + Theme + Password + Sign Out */}

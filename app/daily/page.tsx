@@ -10,7 +10,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 async function DailyContent({
   searchParams,
 }: {
-  searchParams: Promise<{ semester?: string }>;
+  searchParams: Promise<{ semester?: string; group?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupRequiredCard />;
@@ -20,13 +20,15 @@ async function DailyContent({
     requireProfile(),
     searchParams,
   ]);
-  const bundle = await getScheduleBundle(params.semester);
+  const bundle = await getScheduleBundle(params.semester, params.group);
 
   return (
     <AppShell
       profile={profile}
       semesters={bundle.semesters}
       activeSemesterId={bundle.activeSemester?.id ?? null}
+      visibilityGroups={bundle.visibilityGroups}
+      activeGroupId={bundle.activeGroup?.id ?? null}
     >
       <DailyGridView
         semester={bundle.activeSemester}
@@ -34,6 +36,7 @@ async function DailyContent({
         entries={bundle.entries}
         currentUserId={profile.id}
         isAdmin={profile.role === "admin"}
+        activeGroup={bundle.activeGroup}
       />
     </AppShell>
   );
@@ -43,7 +46,9 @@ export default function DailyPage(props: PageProps<"/daily">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <DailyContent
-        searchParams={props.searchParams as Promise<{ semester?: string }>}
+        searchParams={
+          props.searchParams as Promise<{ semester?: string; group?: string }>
+        }
       />
     </Suspense>
   );

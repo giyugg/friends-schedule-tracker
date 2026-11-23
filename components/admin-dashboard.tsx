@@ -4,9 +4,11 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Archive,
   BookOpen,
+  Building2,
   CalendarPlus,
   Check,
   Copy,
+  Eye,
   KeyRound,
   Layers,
   Loader2,
@@ -22,17 +24,21 @@ import {
   createFriendAccountAction,
   createSectionAction,
   createSemesterAction,
+  createVisibilityGroupAction,
   deleteFriendAccountAction,
   deleteScheduleEntryAction,
   deleteSectionAction,
   deleteSemesterAction,
+  deleteVisibilityGroupAction,
   resetFriendPasswordAction,
   saveScheduleEntryAction,
   setActiveSemesterAction,
   toggleArchiveSemesterAction,
   toggleSectionMemberAction,
+  toggleVisibilityGroupMemberAction,
   updateFriendProfileAction,
   updateSectionAction,
+  updateVisibilityGroupAction,
 } from "@/app/actions/admin";
 import {
   COLOR_PRESETS,
@@ -54,9 +60,16 @@ import type {
   SectionWithMembers,
   Semester,
   UserRole,
+  VisibilityGroupType,
+  VisibilityGroupWithMembers,
 } from "@/lib/types";
 
-type AdminTab = "schedules" | "sections" | "accounts" | "semesters";
+type AdminTab =
+  | "schedules"
+  | "sections"
+  | "directory"
+  | "accounts"
+  | "semesters";
 
 interface AdminDashboardProps {
   currentAdminId: string;
@@ -65,6 +78,7 @@ interface AdminDashboardProps {
   sections: SectionWithMembers[];
   entries: ScheduleEntry[];
   profiles: Profile[];
+  visibilityGroups: VisibilityGroupWithMembers[];
   hasServiceRoleKey: boolean;
 }
 
@@ -84,6 +98,7 @@ export function AdminDashboard({
   sections,
   entries,
   profiles,
+  visibilityGroups,
   hasServiceRoleKey,
 }: AdminDashboardProps) {
   const [tab, setTab] = useState<AdminTab>(
@@ -212,6 +227,87 @@ export function AdminDashboard({
   const [editProfileName, setEditProfileName] = useState("");
   const [editProfileRole, setEditProfileRole] = useState<UserRole>("member");
 
+  // --- Directory Tab State ---
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupType, setNewGroupType] =
+    useState<VisibilityGroupType>("circle");
+  const [newGroupDesc, setNewGroupDesc] = useState("");
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupType, setEditGroupType] =
+    useState<VisibilityGroupType>("circle");
+  const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [previewUserId, setPreviewUserId] = useState(
+    () => profiles.find((p) => p.role !== "admin")?.id ?? profiles[0]?.id ?? ""
+  );
+
+  const previewVisibility = useMemo(() => {
+    const target = profiles.find((p) => p.id === previewUserId);
+    if (!target) return null;
+
+    if (target.role === "admin") {
+      return {
+        target,
+        isAdmin: true,
+        groups: visibilityGroups.filter((g) => g.memberIds.includes(target.id)),
+        visiblePeople: profiles.map((p) => ({
+          profile: p,
+          reasons: [p.id === target.id ? "Self" : "Admin Access"],
+        })),
+        visibleSectionCodes: sections.map((s) => s.code),
+      };
+    }
+
+    const mySectionIds = new Set(
+      sections
+        .filter((s) => s.members.some((m) => m.id === target.id))
+        .map((s) => s.id)
+    );
+    const myGroups = visibilityGroups.filter((g) =>
+      g.memberIds.includes(target.id)
+    );
+
+    const visiblePeople: { profile: Profile; reasons: string[] }[] = [];
+    const visibleUserIds = new Set<string>([target.id]);
+
+    for (const p of profiles) {
+      const reasons: string[] = [];
+      if (p.id === target.id) {
+        reasons.push("Self");
+      }
+      if (
+        p.id !== target.id &&
+        sections.some(
+          (s) =>
+            mySectionIds.has(s.id) && s.members.some((m) => m.id === p.id)
+        )
+      ) {
+        reasons.push("Classmate");
+      }
+      for (const g of myGroups) {
+        if (p.id !== target.id && g.memberIds.includes(p.id)) {
+          reasons.push(g.name);
+        }
+      }
+      if (reasons.length > 0) {
+        visibleUserIds.add(p.id);
+        visiblePeople.push({ profile: p, reasons });
+      }
+    }
+
+    const visibleSectionCodes = sections
+      .filter((s) => s.members.some((m) => visibleUserIds.has(m.id)))
+      .map((s) => s.code);
+
+    return {
+      target,
+      isAdmin: false,
+      groups: myGroups,
+      visiblePeople,
+      visibleSectionCodes,
+    };
+  }, [previewUserId, profiles, sections, visibilityGroups]);
+
   // --- Semesters Tab State ---
   const [newSemName, setNewSemName] = useState("");
   const [newSemActive, setNewSemActive] = useState(semesters.length === 0);
@@ -220,6 +316,7 @@ export function AdminDashboard({
   const tabs: { id: AdminTab; label: string; icon: typeof BookOpen }[] = [
     { id: "schedules", label: "Schedules", icon: BookOpen },
     { id: "sections", label: "Sections & Rosters", icon: Layers },
+    { id: "directory", label: "Directory", icon: Building2 },
     { id: "accounts", label: "Friend Accounts", icon: Users },
     { id: "semesters", label: "Semesters", icon: CalendarPlus },
   ];
@@ -843,7 +940,361 @@ export function AdminDashboard({
       )}
 
       {/* ==================================================================== */}
-      {/* TAB 3: FRIEND ACCOUNTS                                               */}
+      {/* TAB 3: DIRECTORY (Circles of Friends & Organizations)                */}
+      {/* ==================================================================== */}
+      {tab === "directory" && (
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/70 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <strong className="text-slate-900 dark:text-slate-100">
+              Visibility Rule:
+            </strong>{" "}
+            Every member automatically sees <strong>themselves</strong>, their{" "}
+            <strong>classmates</strong> (same section), and anyone who shares at
+            least one <strong>Circle of Friends</strong> or{" "}
+            <strong>Organization</strong> with them. Admins always see everyone.
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Create Group + Visibility Preview */}
+            <div className="lg:col-span-5 space-y-5">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+                <h2 className="font-bold text-base flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-rose-500" />
+                  Create Circle / Organization
+                </h2>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    runAction(async () => {
+                      const res = await createVisibilityGroupAction({
+                        name: newGroupName,
+                        type: newGroupType,
+                        description: newGroupDesc,
+                      });
+                      if (res.ok) {
+                        setNewGroupName("");
+                        setNewGroupDesc("");
+                      }
+                      return res;
+                    });
+                  }}
+                  className="space-y-3.5"
+                >
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Group Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="e.g., COF, BulSU Dev Org, BSIS Squad"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Group Type
+                    </label>
+                    <select
+                      value={newGroupType}
+                      onChange={(e) =>
+                        setNewGroupType(e.target.value as VisibilityGroupType)
+                      }
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm"
+                    >
+                      <option value="circle">Circle of Friends</option>
+                      <option value="organization">Organization</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Description (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={newGroupDesc}
+                      onChange={(e) => setNewGroupDesc(e.target.value)}
+                      placeholder="Short note about this group"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="w-full rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-semibold py-2.5 text-sm hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    Create Group
+                  </button>
+                </form>
+              </div>
+
+              {/* Who Can See Whom Preview */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3.5">
+                <h2 className="font-bold text-base flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-emerald-500" />
+                  Visibility Preview
+                </h2>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Inspect User
+                  </label>
+                  <select
+                    value={previewUserId}
+                    onChange={(e) => setPreviewUserId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm"
+                  >
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.display_name} ({p.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {previewVisibility && (
+                  <div className="space-y-3 pt-1 text-xs">
+                    <div>
+                      <div className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-1">
+                        Visible Sections ({previewVisibility.visibleSectionCodes.length})
+                      </div>
+                      {previewVisibility.visibleSectionCodes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {previewVisibility.visibleSectionCodes.map((code) => (
+                            <span
+                              key={code}
+                              className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-medium"
+                            >
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">
+                          No sections visible yet
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-1.5">
+                        Can See ({previewVisibility.visiblePeople.length})
+                      </div>
+                      <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                        {previewVisibility.visiblePeople.map(
+                          ({ profile: p, reasons }) => (
+                            <div
+                              key={p.id}
+                              className="flex items-center justify-between gap-2 py-1 border-b last:border-b-0 border-slate-100 dark:border-slate-800"
+                            >
+                              <span className="font-medium truncate">
+                                {p.display_name}
+                              </span>
+                              <div className="flex flex-wrap justify-end gap-1 shrink-0">
+                                {reasons.map((r) => (
+                                  <span
+                                    key={r}
+                                    className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold"
+                                  >
+                                    {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: All Circles & Organizations */}
+            <div className="lg:col-span-7 space-y-4">
+              {visibilityGroups.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-10 text-center space-y-1.5">
+                  <p className="font-semibold text-sm">
+                    No Circles or Organizations Yet
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Without a group, non-admin users only see their own
+                    classmates. Create a Circle of Friends or Organization on
+                    the left to let members see each other&apos;s schedules.
+                  </p>
+                </div>
+              ) : (
+                visibilityGroups.map((group) => {
+                  const memberSet = new Set(group.memberIds);
+                  const isEditing = editingGroupId === group.id;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        {isEditing ? (
+                          <div className="flex flex-wrap items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editGroupName}
+                              onChange={(e) => setEditGroupName(e.target.value)}
+                              className="flex-1 min-w-[140px] rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-2.5 py-1 text-sm font-bold"
+                            />
+                            <select
+                              value={editGroupType}
+                              onChange={(e) =>
+                                setEditGroupType(
+                                  e.target.value as VisibilityGroupType
+                                )
+                              }
+                              className="rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-2 py-1 text-xs"
+                            >
+                              <option value="circle">Circle</option>
+                              <option value="organization">Organization</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={editGroupDesc}
+                              onChange={(e) => setEditGroupDesc(e.target.value)}
+                              placeholder="Description"
+                              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-2.5 py-1 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runAction(async () => {
+                                  const res = await updateVisibilityGroupAction(
+                                    {
+                                      id: group.id,
+                                      name: editGroupName,
+                                      type: editGroupType,
+                                      description: editGroupDesc,
+                                    }
+                                  );
+                                  if (res.ok) setEditingGroupId(null);
+                                  return res;
+                                })
+                              }
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold cursor-pointer"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-base">
+                                {group.name}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                                  group.type === "organization"
+                                    ? "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
+                                    : "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
+                                }`}
+                              >
+                                {group.type === "organization"
+                                  ? "Organization"
+                                  : "Circle"}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {group.memberIds.length} member
+                                {group.memberIds.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                            {group.description && (
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {group.description}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingGroupId(isEditing ? null : group.id);
+                              setEditGroupName(group.name);
+                              setEditGroupType(group.type);
+                              setEditGroupDesc(group.description ?? "");
+                            }}
+                            className="h-8 w-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 cursor-pointer"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Delete group "${group.name}"?`)) {
+                                runAction(() =>
+                                  deleteVisibilityGroupAction(group.id)
+                                );
+                              }
+                            }}
+                            className="h-8 w-8 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 flex items-center justify-center text-slate-500 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                          Members in {group.name}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {profiles.map((p) => {
+                            const assigned = memberSet.has(p.id);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                disabled={isPending}
+                                onClick={() =>
+                                  runAction(() =>
+                                    toggleVisibilityGroupMemberAction({
+                                      groupId: group.id,
+                                      userId: p.id,
+                                      assign: !assigned,
+                                    })
+                                  )
+                                }
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                                  assigned
+                                    ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white"
+                                    : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400"
+                                }`}
+                              >
+                                {p.display_name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* TAB 4: FRIEND ACCOUNTS                                               */}
       {/* ==================================================================== */}
       {tab === "accounts" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

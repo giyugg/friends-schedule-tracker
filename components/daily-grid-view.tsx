@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarX2, Filter, Search, Sparkles } from "lucide-react";
+import {
+  Building2,
+  CalendarX2,
+  Filter,
+  MapPin,
+  Radio,
+  Search,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import {
   COLOR_PRESETS,
   DAYS,
@@ -10,6 +19,7 @@ import {
   formatTime12h,
   getDefaultDayOfWeek,
   getEntryColorClasses,
+  getLiveSectionStatus,
   getManilaNow,
   START_HOUR,
   TIME_SLOTS,
@@ -21,6 +31,7 @@ import type {
   ScheduleEntry,
   SectionWithMembers,
   Semester,
+  VisibilityGroupWithMembers,
 } from "@/lib/types";
 import { ClassDetailModal } from "./class-detail-modal";
 
@@ -30,6 +41,7 @@ interface DailyGridViewProps {
   entries: ScheduleEntry[];
   currentUserId: string;
   isAdmin: boolean;
+  activeGroup?: VisibilityGroupWithMembers | null;
 }
 
 const ROW_HEIGHT = 24; // ultra-compact px per 30-min slot (all 7AM-8PM fits cleanly)
@@ -42,6 +54,7 @@ export function DailyGridView({
   entries,
   currentUserId,
   isAdmin,
+  activeGroup = null,
 }: DailyGridViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getDefaultDayOfWeek);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,9 +73,46 @@ export function DailyGridView({
   }, []);
 
   const visibleSections = useMemo(
-    () => sections.filter((s) => !hiddenSectionIds.has(s.id)),
-    [sections, hiddenSectionIds]
+    () =>
+      activeGroup
+        ? sections
+        : sections.filter((s) => !hiddenSectionIds.has(s.id)),
+    [sections, hiddenSectionIds, activeGroup]
   );
+
+  const groupMemberStatuses = useMemo(() => {
+    if (!activeGroup) return [];
+    const entriesBySec = new Map<string, ScheduleEntry[]>();
+    for (const entry of entries) {
+      const list = entriesBySec.get(entry.section_id) ?? [];
+      list.push(entry);
+      entriesBySec.set(entry.section_id, list);
+    }
+
+    const items: {
+      memberId: string;
+      displayName: string;
+      sectionCode: string;
+      status: ReturnType<typeof getLiveSectionStatus>;
+    }[] = [];
+
+    for (const sec of sections) {
+      const status = getLiveSectionStatus(
+        entriesBySec.get(sec.id) ?? [],
+        manilaNow
+      );
+      for (const m of sec.members) {
+        items.push({
+          memberId: m.id,
+          displayName: m.display_name,
+          sectionCode: sec.code,
+          status,
+        });
+      }
+    }
+
+    return items.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [activeGroup, sections, entries, manilaNow]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -192,52 +242,187 @@ export function DailyGridView({
         </div>
       </div>
 
-      {/* Friend / Section Filter Pills */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mr-1">
-          <Filter className="h-3.5 w-3.5" />
-          Columns:
-        </span>
-        <button
-          type="button"
-          onClick={() => setHiddenSectionIds(new Set())}
-          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-        >
-          Show All
-        </button>
-        {sections.some((s) => s.members.some((m) => m.id === currentUserId)) && (
+      {/* Group Live Summary (when a group is selected) OR Column Filter Pills */}
+      {activeGroup ? (
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {activeGroup.type === "organization" ? (
+                <Building2 className="h-4 w-4 text-sky-500 shrink-0" />
+              ) : (
+                <Users className="h-4 w-4 text-rose-500 shrink-0" />
+              )}
+              <h2 className="font-bold text-sm sm:text-base truncate">
+                {activeGroup.name}
+              </h2>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                  activeGroup.type === "organization"
+                    ? "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
+                    : "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
+                }`}
+              >
+                {activeGroup.type === "organization"
+                  ? "Organization"
+                  : "Circle"}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                · {groupMemberStatuses.length} member
+                {groupMemberStatuses.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <Radio className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="font-medium tabular-nums">
+                {manilaNow.timeLabel}
+              </span>
+              <span>·</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                {
+                  groupMemberStatuses.filter(
+                    (m) => m.status.state !== "in_class"
+                  ).length
+                }{" "}
+                Free
+              </span>
+              <span>·</span>
+              <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                {
+                  groupMemberStatuses.filter(
+                    (m) => m.status.state === "in_class"
+                  ).length
+                }{" "}
+                In Class
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {groupMemberStatuses.map((item) => {
+              const isInClass = item.status.state === "in_class";
+              return (
+                <div
+                  key={`${item.sectionCode}-${item.memberId}`}
+                  className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 px-3 py-2 flex flex-col gap-1"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                        {item.displayName}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {item.sectionCode}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        isInClass
+                          ? "bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300"
+                          : "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300"
+                      }`}
+                    >
+                      {item.status.state === "in_class"
+                        ? "In Class"
+                        : item.status.state === "done"
+                          ? "Done"
+                          : item.status.state === "sunday"
+                            ? "Sunday"
+                            : "Free"}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate flex items-center gap-1">
+                    {item.status.state === "in_class" && (
+                      <>
+                        <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                        <span className="font-semibold">
+                          {item.status.currentEntry.course_code}
+                        </span>
+                        <span className="text-slate-400">·</span>
+                        <span className="truncate">
+                          {item.status.currentEntry.location ||
+                            item.status.currentEntry.modality.toUpperCase()}
+                        </span>
+                        <span className="text-slate-400 shrink-0">
+                          (til {formatTime12h(item.status.currentEntry.end_time)})
+                        </span>
+                      </>
+                    )}
+                    {item.status.state === "free" &&
+                      (item.status.nextEntry ? (
+                        <span className="truncate">
+                          Next:{" "}
+                          <strong>{item.status.nextEntry.course_code}</strong>{" "}
+                          at {formatTime12h(item.status.nextEntry.start_time)} (
+                          {item.status.nextEntry.location ||
+                            item.status.nextEntry.modality.toUpperCase()}
+                          )
+                        </span>
+                      ) : (
+                        <span>Free all day</span>
+                      ))}
+                    {item.status.state === "done" && (
+                      <span>Done with classes today</span>
+                    )}
+                    {item.status.state === "sunday" && (
+                      <span>No Sunday classes</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mr-1">
+            <Filter className="h-3.5 w-3.5" />
+            Columns:
+          </span>
           <button
             type="button"
-            onClick={showOnlyMine}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition cursor-pointer"
+            onClick={() => setHiddenSectionIds(new Set())}
+            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
           >
-            My Section
+            Show All
           </button>
-        )}
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
-        {sections.map((section) => {
-          const isVisible = !hiddenSectionIds.has(section.id);
-          return (
+          {sections.some((s) =>
+            s.members.some((m) => m.id === currentUserId)
+          ) && (
             <button
-              key={section.id}
               type="button"
-              onClick={() => toggleSection(section.id)}
-              title={
-                section.members.length > 0
-                  ? formatMemberNames(section.members)
-                  : section.code
-              }
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                isVisible
-                  ? "border-slate-300 dark:border-slate-700 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
-                  : "border-slate-200 dark:border-slate-800 bg-transparent text-slate-400 line-through hover:text-slate-600"
-              }`}
+              onClick={showOnlyMine}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition cursor-pointer"
             >
-              {section.code}
+              My Section
             </button>
-          );
-        })}
-      </div>
+          )}
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+          {sections.map((section) => {
+            const isVisible = !hiddenSectionIds.has(section.id);
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                title={
+                  section.members.length > 0
+                    ? formatMemberNames(section.members)
+                    : section.code
+                }
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                  isVisible
+                    ? "border-slate-300 dark:border-slate-700 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
+                    : "border-slate-200 dark:border-slate-800 bg-transparent text-slate-400 line-through hover:text-slate-600"
+                }`}
+              >
+                {section.code}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Side-by-Side Schedule Grid */}
       <div className="w-fit max-w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
