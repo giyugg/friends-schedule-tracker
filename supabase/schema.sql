@@ -1,0 +1,283 @@
+-- ============================================================================
+-- Friends College Schedule Tracker — Supabase Schema & RLS Policies
+-- Paste this entire file into your Supabase Dashboard -> SQL Editor and Run.
+-- ============================================================================
+
+-- 1. Tables
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.semesters (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  is_active boolean not null default false,
+  is_archived boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- Enforce at most one active semester at a time
+create unique index if not exists semesters_single_active_idx
+  on public.semesters (is_active)
+  where is_active = true;
+
+create table if not exists public.sections (
+  id uuid primary key default gen_random_uuid(),
+  semester_id uuid not null references public.semesters(id) on delete cascade,
+  code text not null,
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (semester_id, code)
+);
+
+create index if not exists sections_semester_order_idx
+  on public.sections (semester_id, display_order, code);
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null unique,
+  display_name text not null,
+  role text not null default 'member' check (role in ('admin', 'member')),
+  must_change_password boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.section_members (
+  section_id uuid not null references public.sections(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (section_id, user_id)
+);
+
+create index if not exists section_members_user_idx
+  on public.section_members (user_id);
+
+create table if not exists public.schedule_entries (
+  id uuid primary key default gen_random_uuid(),
+  section_id uuid not null references public.sections(id) on delete cascade,
+  day_of_week smallint not null check (day_of_week between 1 and 6),
+  start_time time not null,
+  end_time time not null,
+  course_code text not null,
+  instructor text,
+  location text,
+  category text not null default 'major'
+    check (category in ('major', 'minor', 'internship', 'other')),
+  modality text not null default 'online'
+    check (modality in ('ftf', 'online', 'hybrid')),
+  color_override text
+    check (
+      color_override is null
+      or color_override in ('coral', 'blush', 'amber', 'cream', 'sage', 'sky', 'lavender')
+    ),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint schedule_time_range_chk check (
+    end_time > start_time
+    and start_time >= time '07:00:00'
+    and end_time <= time '20:00:00'
+  )
+);
+
+create index if not exists schedule_entries_section_day_idx
+  on public.schedule_entries (section_id, day_of_week, start_time);
+
+-- 2. Helper Functions & Triggers
+-- ----------------------------------------------------------------------------
+
+-- Check whether the current authenticated user is an admin
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role = 'admin'
+  );
+$$;
+
+-- Automatically create a profile whenever a user is created in auth.users.
+-- Auto-promotes 2025009221@ms.bulsu.edu.ph to admin!
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  is_bootstrap_admin boolean;
+  meta_name text;
+  meta_role text;
+  meta_must_change boolean;
+begin
+  is_bootstrap_admin := lower(coalesce(new.email, '')) = '2025009221@ms.bulsu.edu.ph';
+
+  meta_name := nullif(trim(coalesce(new.raw_user_meta_data->>'display_name', '')), '');
+  if meta_name is null then
+    meta_name := split_part(coalesce(new.email, 'Friend'), '@', 1);
+  end if;
+
+  if is_bootstrap_admin then
+    meta_role := 'admin';
+    meta_must_change := false;
+  else
+    meta_role := case
+      when (new.raw_user_meta_data->>'role') = 'admin' then 'admin'
+      else 'member'
+    end;
+    meta_must_change := coalesce(
+      (new.raw_user_meta_data->>'must_change_password')::boolean,
+      true
+    );
+  end if;
+
+  insert into public.profiles (id, email, display_name, role, must_change_password)
+  values (new.id, lower(new.email), meta_name, meta_role, meta_must_change)
+  on conflict (id) do update
+    set email = excluded.email,
+        display_name = coalesce(nullif(public.profiles.display_name, ''), excluded.display_name),
+        role = case
+          when lower(excluded.email) = '2025009221@ms.bulsu.edu.ph' then 'admin'
+          else public.profiles.role
+        end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Prevent non-admin users from escalating their own role
+create or replace function public.prevent_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.role is distinct from new.role then
+    if auth.uid() is not null and not public.is_admin() then
+      raise exception 'Only admins can change user roles.';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_prevent_role_escalation on public.profiles;
+create trigger profiles_prevent_role_escalation
+  before update on public.profiles
+  for each row execute function public.prevent_role_escalation();
+
+-- Keep updated_at current on schedule_entries
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists schedule_entries_set_updated_at on public.schedule_entries;
+create trigger schedule_entries_set_updated_at
+  before update on public.schedule_entries
+  for each row execute function public.set_updated_at();
+
+-- 3. Row Level Security (RLS)
+-- ----------------------------------------------------------------------------
+
+alter table public.semesters enable row level security;
+alter table public.sections enable row level security;
+alter table public.profiles enable row level security;
+alter table public.section_members enable row level security;
+alter table public.schedule_entries enable row level security;
+
+-- semesters
+drop policy if exists "Authenticated users can view semesters" on public.semesters;
+create policy "Authenticated users can view semesters"
+  on public.semesters for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Admins can manage semesters" on public.semesters;
+create policy "Admins can manage semesters"
+  on public.semesters for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- sections
+drop policy if exists "Authenticated users can view sections" on public.sections;
+create policy "Authenticated users can view sections"
+  on public.sections for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Admins can manage sections" on public.sections;
+create policy "Admins can manage sections"
+  on public.sections for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- profiles
+drop policy if exists "Authenticated users can view profiles" on public.profiles;
+create policy "Authenticated users can view profiles"
+  on public.profiles for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Users can update own profile or admins can update any" on public.profiles;
+create policy "Users can update own profile or admins can update any"
+  on public.profiles for update
+  to authenticated
+  using (auth.uid() = id or public.is_admin())
+  with check (auth.uid() = id or public.is_admin());
+
+drop policy if exists "Admins can insert profiles" on public.profiles;
+create policy "Admins can insert profiles"
+  on public.profiles for insert
+  to authenticated
+  with check (public.is_admin());
+
+drop policy if exists "Admins can delete profiles" on public.profiles;
+create policy "Admins can delete profiles"
+  on public.profiles for delete
+  to authenticated
+  using (public.is_admin());
+
+-- section_members
+drop policy if exists "Authenticated users can view section members" on public.section_members;
+create policy "Authenticated users can view section members"
+  on public.section_members for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Admins can manage section members" on public.section_members;
+create policy "Admins can manage section members"
+  on public.section_members for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- schedule_entries
+drop policy if exists "Authenticated users can view schedules" on public.schedule_entries;
+create policy "Authenticated users can view schedules"
+  on public.schedule_entries for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Admins can manage schedules" on public.schedule_entries;
+create policy "Admins can manage schedules"
+  on public.schedule_entries for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
