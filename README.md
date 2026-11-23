@@ -48,7 +48,7 @@ npm install
 1. Go to [supabase.com](https://supabase.com) and create a new project.
 2. Once provisioned, open **SQL Editor → New Query**.
 3. Copy the entire contents of [`supabase/schema.sql`](./supabase/schema.sql) into the editor and click **Run**.
-   - This creates all 5 tables (`semesters`, `sections`, `profiles`, `section_members`, `schedule_entries`), Row Level Security policies, and the auto-admin trigger for `2025009221@ms.bulsu.edu.ph`.
+   - This creates all 5 tables (`semesters`, `sections`, `profiles`, `section_members`, `schedule_entries`), Row Level Security policies, and the auto-admin trigger for your configured admin email.
 
 ### 3. Configure environment variables
 
@@ -72,7 +72,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
 
 1. In your Supabase Dashboard, go to **Authentication → Users → Add user → Create new user**.
 2. Enter:
-   - **Email:** `2025009221@ms.bulsu.edu.ph`
+   - **Email:** `admin@example.com` *(matching the admin email configured in `supabase/schema.sql`)*
    - **Password:** *(your chosen admin password)*
    - Check **Auto Confirm User**.
 3. Click **Create user**. The database trigger automatically assigns `role = 'admin'` and `must_change_password = false`.
@@ -83,7 +83,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with `2025009221@ms.bulsu.edu.ph`.
+Open [http://localhost:3000](http://localhost:3000) and sign in with your admin email.
 
 ### 6. First steps in `/admin`
 
