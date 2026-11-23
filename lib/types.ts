@@ -85,4 +85,5 @@ export interface VisibilityGroup {
 
 export interface VisibilityGroupWithMembers extends VisibilityGroup {
   memberIds: string[];
+  memberRoles: Record<string, string | null>;
 }

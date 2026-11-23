@@ -70,20 +70,26 @@ export async function getScheduleBundle(
       .order("name", { ascending: true }),
     supabase
       .from("visibility_group_members")
-      .select("group_id, user_id"),
+      .select("group_id, user_id, role_label"),
   ]);
 
   const semesters = (semestersData ?? []) as Semester[];
   const profiles = (profilesData ?? []) as Profile[];
 
   const membersByGroup = new Map<string, string[]>();
+  const rolesByGroup = new Map<string, Record<string, string | null>>();
   for (const row of (groupMembersData ?? []) as {
     group_id: string;
     user_id: string;
+    role_label?: string | null;
   }[]) {
     const list = membersByGroup.get(row.group_id) ?? [];
     list.push(row.user_id);
     membersByGroup.set(row.group_id, list);
+
+    const roleMap = rolesByGroup.get(row.group_id) ?? {};
+    roleMap[row.user_id] = row.role_label?.trim() || null;
+    rolesByGroup.set(row.group_id, roleMap);
   }
 
   const visibilityGroups: VisibilityGroupWithMembers[] = (
@@ -91,6 +97,8 @@ export async function getScheduleBundle(
   ).map((g) => ({
     ...g,
     memberIds: membersByGroup.get(g.id) ?? [],
+    memberRoles:
+      g.type === "organization" ? (rolesByGroup.get(g.id) ?? {}) : {},
   }));
 
   const activeSemester =

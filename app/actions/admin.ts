@@ -25,6 +25,7 @@ function revalidateAll() {
   revalidatePath("/daily");
   revalidatePath("/weekly");
   revalidatePath("/free-time");
+  revalidatePath("/groups", "layout");
   revalidatePath("/admin");
 }
 
@@ -636,4 +637,52 @@ export async function toggleVisibilityGroupMemberAction(input: {
 
   revalidateAll();
   return { ok: true };
+}
+
+export async function updateOrganizationMemberRoleAction(input: {
+  groupId: string;
+  userId: string;
+  roleLabel: string;
+}): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: group, error: groupError } = await supabase
+    .from("visibility_groups")
+    .select("id, type")
+    .eq("id", input.groupId)
+    .single();
+
+  if (groupError || !group) {
+    return { ok: false, error: "Group not found." };
+  }
+
+  if (group.type !== "organization") {
+    return {
+      ok: false,
+      error: "Member role labels are only supported for Organizations.",
+    };
+  }
+
+  const trimmed = input.roleLabel.trim();
+  if (trimmed.length > 60) {
+    return {
+      ok: false,
+      error: "Role label must be 60 characters or fewer.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("visibility_group_members")
+    .update({ role_label: trimmed || null })
+    .eq("group_id", input.groupId)
+    .eq("user_id", input.userId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidateAll();
+  return {
+    ok: true,
+    message: trimmed ? `Updated role to "${trimmed}".` : "Cleared role label.",
+  };
 }

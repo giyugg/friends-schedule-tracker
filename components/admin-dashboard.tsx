@@ -37,6 +37,7 @@ import {
   toggleSectionMemberAction,
   toggleVisibilityGroupMemberAction,
   updateFriendProfileAction,
+  updateOrganizationMemberRoleAction,
   updateSectionAction,
   updateVisibilityGroupAction,
 } from "@/app/actions/admin";
@@ -237,6 +238,7 @@ export function AdminDashboard({
   const [editGroupType, setEditGroupType] =
     useState<VisibilityGroupType>("circle");
   const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [previewUserId, setPreviewUserId] = useState(
     () => profiles.find((p) => p.role !== "admin")?.id ?? profiles[0]?.id ?? ""
   );
@@ -1284,6 +1286,99 @@ export function AdminDashboard({
                           })}
                         </div>
                       </div>
+
+                      {group.type === "organization" &&
+                        group.memberIds.length > 0 && (
+                          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                                Organization Roles (Labels Only)
+                              </div>
+                              <span className="text-[10px] text-slate-400">
+                                Informational only · no extra permissions
+                              </span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {profiles
+                                .filter((p) => memberSet.has(p.id))
+                                .map((p) => {
+                                  const draftKey = `${group.id}:${p.id}`;
+                                  const savedRole =
+                                    group.memberRoles[p.id] ?? "";
+                                  const draftValue =
+                                    roleDrafts[draftKey] !== undefined
+                                      ? roleDrafts[draftKey]
+                                      : savedRole;
+                                  const isDirty =
+                                    draftValue.trim() !== savedRole;
+
+                                  const handleSaveRole = () => {
+                                    if (!isDirty) return;
+                                    runAction(async () => {
+                                      const res =
+                                        await updateOrganizationMemberRoleAction(
+                                          {
+                                            groupId: group.id,
+                                            userId: p.id,
+                                            roleLabel: draftValue,
+                                          }
+                                        );
+                                      if (res.ok) {
+                                        setRoleDrafts((prev) => {
+                                          const next = { ...prev };
+                                          delete next[draftKey];
+                                          return next;
+                                        });
+                                      }
+                                      return res;
+                                    });
+                                  };
+
+                                  return (
+                                    <div
+                                      key={p.id}
+                                      className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/80 px-3 py-2"
+                                    >
+                                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 sm:w-44 shrink-0 truncate">
+                                        {p.display_name}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        maxLength={60}
+                                        value={draftValue}
+                                        onChange={(e) =>
+                                          setRoleDrafts((prev) => ({
+                                            ...prev,
+                                            [draftKey]: e.target.value,
+                                          }))
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleSaveRole();
+                                          }
+                                        }}
+                                        placeholder="e.g., Relations Lead, VP Internal…"
+                                        className="flex-1 min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs outline-none focus:border-sky-400"
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={isPending || !isDirty}
+                                        onClick={handleSaveRole}
+                                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition shrink-0 ${
+                                          isDirty
+                                            ? "bg-sky-600 text-white hover:bg-sky-700 cursor-pointer"
+                                            : "bg-slate-200/70 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                                        }`}
+                                      >
+                                        Save
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   );
                 })

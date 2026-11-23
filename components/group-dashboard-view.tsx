@@ -174,6 +174,8 @@ export function GroupDashboardView({
 
   const isOrg = group.type === "organization";
   const GroupIcon = isOrg ? Building2 : Users;
+  const getMemberRole = (userId: string) =>
+    isOrg ? (group.memberRoles[userId] ?? null) : null;
 
   return (
     <div className="space-y-6">
@@ -286,6 +288,7 @@ export function GroupDashboardView({
             {memberStatuses.map(({ member, sections: memberSections, status }) => {
               const isMe = member.id === currentUserId;
               const isInClass = status?.state === "in_class";
+              const roleLabel = getMemberRole(member.id);
               return (
                 <div
                   key={member.id}
@@ -305,6 +308,13 @@ export function GroupDashboardView({
                           </span>
                         )}
                       </div>
+                      {roleLabel && (
+                        <div className="mt-1">
+                          <span className="inline-block max-w-full truncate px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border border-sky-200/70 dark:border-sky-900">
+                            {roleLabel}
+                          </span>
+                        </div>
+                      )}
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                         {memberSections.length > 0
                           ? memberSections.map((s) => s.code).join(", ")
@@ -405,14 +415,20 @@ export function GroupDashboardView({
             {members.map((member) => {
               const memberSections = sectionsByMember.get(member.id) ?? [];
               const isMe = member.id === currentUserId;
+              const roleLabel = getMemberRole(member.id);
               return (
                 <div
                   key={member.id}
                   className="py-2.5 flex flex-wrap items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1.5">
                       <span className="truncate">{member.display_name}</span>
+                      {roleLabel && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border border-sky-200/70 dark:border-sky-900">
+                          {roleLabel}
+                        </span>
+                      )}
                       {isMe && (
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">
                           You
@@ -542,13 +558,20 @@ export function GroupDashboardView({
                           <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                             {section.code}
                           </div>
-                          <div className="text-[10px] leading-snug text-slate-500 dark:text-slate-400 mt-0.5">
-                            {section.members.map((m, idx) => (
-                              <span key={m.id}>
-                                {idx > 0 && <br />}
-                                {m.display_name}
-                              </span>
-                            ))}
+                          <div className="text-[10px] leading-snug text-slate-500 dark:text-slate-400 mt-0.5 space-y-0.5">
+                            {section.members.map((m) => {
+                              const roleLabel = getMemberRole(m.id);
+                              return (
+                                <div key={m.id} className="leading-tight">
+                                  <div className="truncate">{m.display_name}</div>
+                                  {roleLabel && (
+                                    <div className="text-[9px] font-semibold text-sky-600 dark:text-sky-400 truncate">
+                                      {roleLabel}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
