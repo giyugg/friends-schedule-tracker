@@ -213,8 +213,44 @@ export function HomeIntro({ isSignedIn, displayName }: HomeIntroProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/70 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-        Schedule TBA · Invite-only college schedule tracker
+      <footer className="border-t border-slate-200/70 dark:border-slate-800/80 py-6 px-4 text-center text-xs text-slate-500 dark:text-slate-400">
+        <div className="max-w-6xl mx-auto space-y-1.5">
+          <p>Schedule TBA · Invite-only college schedule tracker</p>
+          <p>
+            Created by Kyle A. Acuña of Bulacan State University, BS Information
+            System Student
+          </p>
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <a
+              href="https://github.com/giyugg/friends-schedule-tracker"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            >
+              Source Code
+            </a>
+            <span aria-hidden="true">·</span>
+            <span
+              className="select-none"
+              style={{
+                direction: "rtl",
+                unicodeBidi: "bidi-override",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+              }}
+            >
+              moc.liamg
+              <span style={{ display: "none" }} aria-hidden="true">
+                nospam
+              </span>
+              @
+              <span style={{ display: "none" }} aria-hidden="true">
+                invalid
+              </span>
+              sisb.elyk.anuca
+            </span>
+          </p>
+        </div>
       </footer>
     </div>
   );
