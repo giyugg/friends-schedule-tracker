@@ -87,3 +87,54 @@ export interface VisibilityGroupWithMembers extends VisibilityGroup {
   memberIds: string[];
   memberRoles: Record<string, string | null>;
 }
+
+export type GradeSemesterType = "1st" | "2nd" | "midyear";
+
+export type GradeValue =
+  | "1.00"
+  | "1.25"
+  | "1.50"
+  | "1.75"
+  | "2.00"
+  | "2.25"
+  | "2.50"
+  | "2.75"
+  | "3.00"
+  | "4.00"
+  | "5.00"
+  | "FDA"
+  | "INC"
+  | "OG"
+  | "DRP"
+  | "UD";
+
+export interface GradeTerm {
+  id: string;
+  user_id: string;
+  academic_year: string;
+  semester_type: GradeSemesterType;
+  year_level: number;
+  is_locked: boolean;
+  locked_at: string | null;
+  last_unlocked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GradeEntry {
+  id: string;
+  term_id: string;
+  user_id: string;
+  course_code: string;
+  course_name: string;
+  units: number;
+  grade_value: GradeValue;
+  is_academic: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GradeTermWithEntries extends GradeTerm {
+  entries: GradeEntry[];
+}

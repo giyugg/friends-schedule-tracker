@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarDays,
   Clock,
+  GraduationCap,
   KeyRound,
   LayoutGrid,
   LogOut,
@@ -64,6 +65,7 @@ export function AppShell({
     { href: "/daily", label: "Daily Grid", icon: LayoutGrid },
     { href: "/weekly", label: "Section Weekly", icon: CalendarDays },
     { href: "/free-time", label: "Free Time", icon: Clock },
+    { href: "/grades", label: "Grades", icon: GraduationCap },
     ...(profile.role === "admin"
       ? [{ href: "/admin", label: "Admin", icon: Shield }]
       : []),

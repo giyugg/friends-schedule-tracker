@@ -3,6 +3,9 @@ import "server-only";
 import { createClient } from "./supabase/server";
 import { isSupabaseConfigured } from "./supabase/config";
 import type {
+  GradeEntry,
+  GradeTerm,
+  GradeTermWithEntries,
   Profile,
   ScheduleEntry,
   SectionMember,
@@ -11,6 +14,7 @@ import type {
   VisibilityGroup,
   VisibilityGroupWithMembers,
 } from "./types";
+import { sortGradeTerms } from "./grades-utils";
 
 export interface ScheduleBundle {
   semesters: Semester[];
@@ -225,5 +229,144 @@ export async function getGroupDashboardBundle(
     members,
     sections,
     entries,
+  };
+}
+
+export interface GradesBundle {
+  semesters: Semester[];
+  activeSemester: Semester | null;
+  visibilityGroups: VisibilityGroupWithMembers[];
+  gradeTerms: GradeTermWithEntries[];
+  migrationRequired: boolean;
+}
+
+export async function getGradesBundle(
+  userId: string,
+  requestedSemesterId?: string
+): Promise<GradesBundle> {
+  if (!isSupabaseConfigured()) {
+    return {
+      semesters: [],
+      activeSemester: null,
+      visibilityGroups: [],
+      gradeTerms: [],
+      migrationRequired: false,
+    };
+  }
+
+  const supabase = await createClient();
+
+  const [
+    { data: semestersData },
+    { data: groupsData },
+    { data: groupMembersData },
+    { data: termsData, error: termsError },
+    { data: entriesData, error: entriesError },
+  ] = await Promise.all([
+    supabase
+      .from("semesters")
+      .select("*")
+      .order("is_active", { ascending: false })
+      .order("is_archived", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("visibility_groups")
+      .select("*")
+      .order("type", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("visibility_group_members")
+      .select("group_id, user_id, role_label"),
+    supabase
+      .from("grade_terms")
+      .select("*")
+      .eq("user_id", userId)
+      .order("academic_year", { ascending: true }),
+    supabase
+      .from("grade_entries")
+      .select("*")
+      .eq("user_id", userId)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const semesters = (semestersData ?? []) as Semester[];
+
+  const membersByGroup = new Map<string, string[]>();
+  const rolesByGroup = new Map<string, Record<string, string | null>>();
+  for (const row of (groupMembersData ?? []) as {
+    group_id: string;
+    user_id: string;
+    role_label?: string | null;
+  }[]) {
+    const list = membersByGroup.get(row.group_id) ?? [];
+    list.push(row.user_id);
+    membersByGroup.set(row.group_id, list);
+
+    const roleMap = rolesByGroup.get(row.group_id) ?? {};
+    roleMap[row.user_id] = row.role_label?.trim() || null;
+    rolesByGroup.set(row.group_id, roleMap);
+  }
+
+  const visibilityGroups: VisibilityGroupWithMembers[] = (
+    (groupsData ?? []) as VisibilityGroup[]
+  ).map((g) => ({
+    ...g,
+    memberIds: membersByGroup.get(g.id) ?? [],
+    memberRoles:
+      g.type === "organization" ? (rolesByGroup.get(g.id) ?? {}) : {},
+  }));
+
+  const activeSemester =
+    (requestedSemesterId
+      ? semesters.find((s) => s.id === requestedSemesterId)
+      : undefined) ??
+    semesters.find((s) => s.is_active) ??
+    semesters.find((s) => !s.is_archived) ??
+    semesters[0] ??
+    null;
+
+  const missingTable =
+    termsError?.code === "42P01" ||
+    entriesError?.code === "42P01" ||
+    termsError?.code === "PGRST205" ||
+    entriesError?.code === "PGRST205";
+
+  if (missingTable) {
+    return {
+      semesters,
+      activeSemester,
+      visibilityGroups,
+      gradeTerms: [],
+      migrationRequired: true,
+    };
+  }
+
+  const entriesByTerm = new Map<string, GradeEntry[]>();
+  for (const raw of (entriesData ?? []) as (Omit<GradeEntry, "units"> & {
+    units: number | string;
+  })[]) {
+    const entry: GradeEntry = {
+      ...raw,
+      units: Number(raw.units),
+    };
+    const list = entriesByTerm.get(entry.term_id) ?? [];
+    list.push(entry);
+    entriesByTerm.set(entry.term_id, list);
+  }
+
+  const gradeTerms = sortGradeTerms(
+    ((termsData ?? []) as GradeTerm[]).map((term) => ({
+      ...term,
+      entries: entriesByTerm.get(term.id) ?? [],
+    }))
+  );
+
+  return {
+    semesters,
+    activeSemester,
+    visibilityGroups,
+    gradeTerms,
+    migrationRequired: false,
   };
 }
