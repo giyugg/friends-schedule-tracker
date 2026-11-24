@@ -14,3 +14,18 @@ export function PageSkeleton() {
     </div>
   );
 }
+
+export function ContentSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-busy="true" aria-label="Loading content">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-2">
+          <div className="h-7 w-56 rounded-xl bg-slate-200/70 dark:bg-slate-800" />
+          <div className="h-4 w-80 max-w-full rounded-lg bg-slate-200/50 dark:bg-slate-800/60" />
+        </div>
+        <div className="h-9 w-36 rounded-xl bg-slate-200/60 dark:bg-slate-800/70" />
+      </div>
+      <div className="h-[60vh] w-full rounded-2xl bg-slate-200/45 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60" />
+    </div>
+  );
+}

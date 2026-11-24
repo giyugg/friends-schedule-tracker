@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
 import { createClient } from "./supabase/server";
 import { isSupabaseConfigured } from "./supabase/config";
 import type {
@@ -18,35 +19,19 @@ import type {
 } from "./types";
 import { sortGradeTerms } from "./grades-utils";
 
-export interface ScheduleBundle {
+export interface ShellData {
   semesters: Semester[];
-  activeSemester: Semester | null;
-  sections: SectionWithMembers[];
-  entries: ScheduleEntry[];
-  profiles: Profile[];
   visibilityGroups: VisibilityGroupWithMembers[];
 }
 
-export interface GroupDashboardBundle {
-  semesters: Semester[];
-  activeSemester: Semester | null;
-  visibilityGroups: VisibilityGroupWithMembers[];
-  group: VisibilityGroupWithMembers;
-  members: Profile[];
-  sections: SectionWithMembers[];
-  entries: ScheduleEntry[];
-}
+export async function getShellData(): Promise<ShellData> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("shell", "semesters", "groups");
 
-export async function getScheduleBundle(
-  requestedSemesterId?: string
-): Promise<ScheduleBundle> {
   if (!isSupabaseConfigured()) {
     return {
       semesters: [],
-      activeSemester: null,
-      sections: [],
-      entries: [],
-      profiles: [],
       visibilityGroups: [],
     };
   }
@@ -55,7 +40,6 @@ export async function getScheduleBundle(
 
   const [
     { data: semestersData },
-    { data: profilesData },
     { data: groupsData },
     { data: groupMembersData },
   ] = await Promise.all([
@@ -65,10 +49,6 @@ export async function getScheduleBundle(
       .order("is_active", { ascending: false })
       .order("is_archived", { ascending: true })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("*")
-      .order("display_name", { ascending: true }),
     supabase
       .from("visibility_groups")
       .select("*")
@@ -80,7 +60,6 @@ export async function getScheduleBundle(
   ]);
 
   const semesters = (semestersData ?? []) as Semester[];
-  const profiles = (profilesData ?? []) as Profile[];
 
   const membersByGroup = new Map<string, string[]>();
   const rolesByGroup = new Map<string, Record<string, string | null>>();
@@ -106,6 +85,62 @@ export async function getScheduleBundle(
     memberRoles:
       g.type === "organization" ? (rolesByGroup.get(g.id) ?? {}) : {},
   }));
+
+  return {
+    semesters,
+    visibilityGroups,
+  };
+}
+
+export interface ScheduleBundle {
+  semesters: Semester[];
+  activeSemester: Semester | null;
+  sections: SectionWithMembers[];
+  entries: ScheduleEntry[];
+  profiles: Profile[];
+  visibilityGroups: VisibilityGroupWithMembers[];
+}
+
+export interface GroupDashboardBundle {
+  semesters: Semester[];
+  activeSemester: Semester | null;
+  visibilityGroups: VisibilityGroupWithMembers[];
+  group: VisibilityGroupWithMembers;
+  members: Profile[];
+  sections: SectionWithMembers[];
+  entries: ScheduleEntry[];
+}
+
+export async function getScheduleBundle(
+  requestedSemesterId?: string
+): Promise<ScheduleBundle> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("semesters", "sections", "schedules", "groups", "profiles");
+
+  if (!isSupabaseConfigured()) {
+    return {
+      semesters: [],
+      activeSemester: null,
+      sections: [],
+      entries: [],
+      profiles: [],
+      visibilityGroups: [],
+    };
+  }
+
+  const supabase = await createClient();
+
+  const [shell, { data: profilesData }] = await Promise.all([
+    getShellData(),
+    supabase
+      .from("profiles")
+      .select("*")
+      .order("display_name", { ascending: true }),
+  ]);
+
+  const { semesters, visibilityGroups } = shell;
+  const profiles = (profilesData ?? []) as Profile[];
 
   const activeSemester =
     (requestedSemesterId
@@ -202,6 +237,10 @@ export async function getGroupDashboardBundle(
   groupId: string,
   requestedSemesterId?: string
 ): Promise<GroupDashboardBundle | null> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("semesters", "sections", "schedules", "groups", "profiles");
+
   const bundle = await getScheduleBundle(requestedSemesterId);
   const group = bundle.visibilityGroups.find((g) => g.id === groupId);
   if (!group) return null;
@@ -246,6 +285,10 @@ export async function getGradesBundle(
   userId: string,
   requestedSemesterId?: string
 ): Promise<GradesBundle> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("semesters", "groups", "grades");
+
   if (!isSupabaseConfigured()) {
     return {
       semesters: [],
@@ -259,26 +302,11 @@ export async function getGradesBundle(
   const supabase = await createClient();
 
   const [
-    { data: semestersData },
-    { data: groupsData },
-    { data: groupMembersData },
+    shell,
     { data: termsData, error: termsError },
     { data: entriesData, error: entriesError },
   ] = await Promise.all([
-    supabase
-      .from("semesters")
-      .select("*")
-      .order("is_active", { ascending: false })
-      .order("is_archived", { ascending: true })
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("visibility_groups")
-      .select("*")
-      .order("type", { ascending: true })
-      .order("name", { ascending: true }),
-    supabase
-      .from("visibility_group_members")
-      .select("group_id, user_id, role_label"),
+    getShellData(),
     supabase
       .from("grade_terms")
       .select("*")
@@ -292,32 +320,7 @@ export async function getGradesBundle(
       .order("created_at", { ascending: true }),
   ]);
 
-  const semesters = (semestersData ?? []) as Semester[];
-
-  const membersByGroup = new Map<string, string[]>();
-  const rolesByGroup = new Map<string, Record<string, string | null>>();
-  for (const row of (groupMembersData ?? []) as {
-    group_id: string;
-    user_id: string;
-    role_label?: string | null;
-  }[]) {
-    const list = membersByGroup.get(row.group_id) ?? [];
-    list.push(row.user_id);
-    membersByGroup.set(row.group_id, list);
-
-    const roleMap = rolesByGroup.get(row.group_id) ?? {};
-    roleMap[row.user_id] = row.role_label?.trim() || null;
-    rolesByGroup.set(row.group_id, roleMap);
-  }
-
-  const visibilityGroups: VisibilityGroupWithMembers[] = (
-    (groupsData ?? []) as VisibilityGroup[]
-  ).map((g) => ({
-    ...g,
-    memberIds: membersByGroup.get(g.id) ?? [],
-    memberRoles:
-      g.type === "organization" ? (rolesByGroup.get(g.id) ?? {}) : {},
-  }));
+  const { semesters, visibilityGroups } = shell;
 
   const activeSemester =
     (requestedSemesterId
@@ -389,6 +392,18 @@ export async function getProfileBundle(
   userId: string,
   requestedSemesterId?: string
 ): Promise<ProfileBundle> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag(
+    "semesters",
+    "sections",
+    "schedules",
+    "groups",
+    "profiles",
+    "grades",
+    "profile-requests"
+  );
+
   if (!isSupabaseConfigured()) {
     return {
       semesters: [],
@@ -497,6 +512,10 @@ export interface AdminProfileRequestsBundle {
 export async function getAdminProfileChangeRequests(
   profiles: Profile[]
 ): Promise<AdminProfileRequestsBundle> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("profile-requests", "profiles");
+
   if (!isSupabaseConfigured()) {
     return { requests: [], migrationRequired: false };
   }

@@ -9,9 +9,8 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
 import { SetupRequiredCard } from "@/components/setup-required-card";
-import { AppShell } from "@/components/app-shell";
 import { AdminDashboard } from "@/components/admin-dashboard";
-import { PageSkeleton } from "@/components/page-skeleton";
+import { ContentSkeleton } from "@/components/page-skeleton";
 
 async function AdminContent({
   searchParams,
@@ -30,31 +29,24 @@ async function AdminContent({
   const requestsBundle = await getAdminProfileChangeRequests(bundle.profiles);
 
   return (
-    <AppShell
-      profile={adminProfile}
+    <AdminDashboard
+      currentAdminId={adminProfile.id}
       semesters={bundle.semesters}
-      activeSemesterId={bundle.activeSemester?.id ?? null}
+      activeSemester={bundle.activeSemester}
+      sections={bundle.sections}
+      entries={bundle.entries}
+      profiles={bundle.profiles}
       visibilityGroups={bundle.visibilityGroups}
-    >
-      <AdminDashboard
-        currentAdminId={adminProfile.id}
-        semesters={bundle.semesters}
-        activeSemester={bundle.activeSemester}
-        sections={bundle.sections}
-        entries={bundle.entries}
-        profiles={bundle.profiles}
-        visibilityGroups={bundle.visibilityGroups}
-        profileRequests={requestsBundle.requests}
-        requestsMigrationRequired={requestsBundle.migrationRequired}
-        hasServiceRoleKey={isSupabaseAdminConfigured()}
-      />
-    </AppShell>
+      profileRequests={requestsBundle.requests}
+      requestsMigrationRequired={requestsBundle.migrationRequired}
+      hasServiceRoleKey={isSupabaseAdminConfigured()}
+    />
   );
 }
 
 export default function AdminPage(props: PageProps<"/admin">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<ContentSkeleton />}>
       <AdminContent
         searchParams={props.searchParams as Promise<{ semester?: string }>}
       />

@@ -1,5 +1,6 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -70,6 +71,9 @@ export async function loginAction(
     .eq("id", data.user.id)
     .single();
 
+  updateTag("profile");
+  updateTag("shell");
+
   if (profile?.must_change_password) {
     redirect("/change-password");
   }
@@ -85,6 +89,9 @@ export async function logoutAction() {
 
   const cookieStore = await cookies();
   cookieStore.delete(STAY_LOGGED_IN_COOKIE);
+
+  updateTag("profile");
+  updateTag("shell");
 
   redirect("/login");
 }
@@ -133,6 +140,9 @@ export async function changePasswordAction(
   if (profileError) {
     return { error: profileError.message };
   }
+
+  updateTag("profile");
+  updateTag("shell");
 
   redirect("/daily");
 }

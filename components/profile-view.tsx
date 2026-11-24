@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
@@ -112,7 +112,6 @@ export function ProfileView({
   changeRequests,
   requestsMigrationRequired = false,
 }: ProfileViewProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
   const [isPending, startTransition] = useTransition();
@@ -216,7 +215,6 @@ export function ProfileView({
         type: "success",
         text: res.message ?? "Display name change submitted.",
       });
-      router.refresh();
     });
   };
 
@@ -235,7 +233,6 @@ export function ProfileView({
         type: "success",
         text: res.message ?? "Request cancelled.",
       });
-      router.refresh();
     });
   };
 

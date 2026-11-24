@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,6 +11,10 @@ export interface ProfileActionResult {
 }
 
 function revalidateProfilePaths() {
+  updateTag("profile");
+  updateTag("profiles");
+  updateTag("shell");
+  updateTag("profile-requests");
   revalidatePath("/");
   revalidatePath("/daily");
   revalidatePath("/weekly");
@@ -97,6 +101,7 @@ export async function requestDisplayNameChangeAction(
     };
   }
 
+  updateTag("profile-requests");
   revalidatePath("/profile");
   revalidatePath("/admin");
   return {
@@ -138,6 +143,7 @@ export async function cancelDisplayNameChangeRequestAction(
     };
   }
 
+  updateTag("profile-requests");
   revalidatePath("/profile");
   revalidatePath("/admin");
   return {

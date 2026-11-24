@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -21,6 +21,14 @@ export interface ActionResult {
 }
 
 function revalidateAll() {
+  updateTag("shell");
+  updateTag("semesters");
+  updateTag("sections");
+  updateTag("schedules");
+  updateTag("groups");
+  updateTag("profiles");
+  updateTag("profile");
+  updateTag("profile-requests");
   revalidatePath("/");
   revalidatePath("/daily");
   revalidatePath("/weekly");

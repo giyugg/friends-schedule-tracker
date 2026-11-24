@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Award,
@@ -119,7 +118,6 @@ export function GradesView({
   initialTerms,
   migrationRequired = false,
 }: GradesViewProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const sortedTerms = useMemo(
@@ -298,7 +296,6 @@ export function GradesView({
         setSelectedTermId(res.termId);
       }
       setFeedback({ type: "success", text: res.message ?? "Semester added." });
-      router.refresh();
     });
   };
 
@@ -340,7 +337,6 @@ export function GradesView({
         type: "success",
         text: res.message ?? "Grades saved.",
       });
-      router.refresh();
     });
   };
 
@@ -366,7 +362,6 @@ export function GradesView({
         type: "success",
         text: res.message ?? "Semester unlocked.",
       });
-      router.refresh();
     });
   };
 
@@ -393,7 +388,6 @@ export function GradesView({
         type: "success",
         text: res.message ?? "Semester deleted.",
       });
-      router.refresh();
     });
   };
 

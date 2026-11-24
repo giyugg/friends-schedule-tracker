@@ -58,7 +58,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isHomeRoute = pathname === "/";
   const isLoginRoute = pathname === "/login";
-  const isChangePasswordRoute = pathname === "/change-password";
+  const isAdminRoute = pathname.startsWith("/admin");
 
   if (!user) {
     if (!isLoginRoute && !isHomeRoute) {
@@ -69,31 +69,29 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, must_change_password")
-    .eq("id", user.id)
-    .single();
+  // Only query profiles in proxy when needed for early routing decisions.
+  // Authenticated app routes enforce must_change_password inside app/(app)/layout.tsx.
+  if (isLoginRoute || isAdminRoute) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, must_change_password")
+      .eq("id", user.id)
+      .single();
 
-  const mustChange = profile?.must_change_password ?? false;
-  const isAdmin = profile?.role === "admin";
+    const mustChange = profile?.must_change_password ?? false;
+    const isAdmin = profile?.role === "admin";
 
-  if (mustChange && !isChangePasswordRoute && !isHomeRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/change-password";
-    return NextResponse.redirect(url);
-  }
+    if (isLoginRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = mustChange ? "/change-password" : "/daily";
+      return NextResponse.redirect(url);
+    }
 
-  if (isLoginRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = mustChange ? "/change-password" : "/daily";
-    return NextResponse.redirect(url);
-  }
-
-  if (pathname.startsWith("/admin") && !isAdmin) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/daily";
-    return NextResponse.redirect(url);
+    if (isAdminRoute && !isAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/daily";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

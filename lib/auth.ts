@@ -1,11 +1,16 @@
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { isSupabaseConfigured } from "./supabase/config";
 import type { Profile } from "./types";
 
 export async function getCurrentProfile(): Promise<Profile | null> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("profile");
+
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();

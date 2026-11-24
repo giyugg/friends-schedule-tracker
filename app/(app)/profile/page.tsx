@@ -3,9 +3,8 @@ import { requireProfile } from "@/lib/auth";
 import { getProfileBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SetupRequiredCard } from "@/components/setup-required-card";
-import { AppShell } from "@/components/app-shell";
 import { ProfileView } from "@/components/profile-view";
-import { PageSkeleton } from "@/components/page-skeleton";
+import { ContentSkeleton } from "@/components/page-skeleton";
 
 async function ProfileContent({
   searchParams,
@@ -23,30 +22,23 @@ async function ProfileContent({
   const bundle = await getProfileBundle(profile.id, params.semester);
 
   return (
-    <AppShell
+    <ProfileView
       profile={profile}
-      semesters={bundle.semesters}
-      activeSemesterId={bundle.activeSemester?.id ?? null}
+      activeSemester={bundle.activeSemester}
+      userSection={bundle.userSection}
+      sectionEntries={bundle.sectionEntries}
       visibilityGroups={bundle.visibilityGroups}
-    >
-      <ProfileView
-        profile={profile}
-        activeSemester={bundle.activeSemester}
-        userSection={bundle.userSection}
-        sectionEntries={bundle.sectionEntries}
-        visibilityGroups={bundle.visibilityGroups}
-        gradeTerms={bundle.gradeTerms}
-        gradesMigrationRequired={bundle.gradesMigrationRequired}
-        changeRequests={bundle.changeRequests}
-        requestsMigrationRequired={bundle.requestsMigrationRequired}
-      />
-    </AppShell>
+      gradeTerms={bundle.gradeTerms}
+      gradesMigrationRequired={bundle.gradesMigrationRequired}
+      changeRequests={bundle.changeRequests}
+      requestsMigrationRequired={bundle.requestsMigrationRequired}
+    />
   );
 }
 
 export default function ProfilePage(props: PageProps<"/profile">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<ContentSkeleton />}>
       <ProfileContent
         searchParams={props.searchParams as Promise<{ semester?: string }>}
       />

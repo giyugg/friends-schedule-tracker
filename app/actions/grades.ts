@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseAcademicYear, VALID_GRADE_VALUES } from "@/lib/grades-utils";
@@ -72,7 +72,9 @@ export async function createGradeTermAction(input: {
     };
   }
 
+  updateTag("grades");
   revalidatePath("/grades");
+  revalidatePath("/profile");
   return {
     ok: true,
     termId: data.id,
@@ -205,7 +207,9 @@ export async function saveGradeTermEntriesAction(input: {
     }
   }
 
+  updateTag("grades");
   revalidatePath("/grades");
+  revalidatePath("/profile");
   return {
     ok: true,
     termId: term.id,
@@ -237,7 +241,9 @@ export async function unlockGradeTermAction(
     };
   }
 
+  updateTag("grades");
   revalidatePath("/grades");
+  revalidatePath("/profile");
   return {
     ok: true,
     termId,
@@ -281,7 +287,9 @@ export async function deleteGradeTermAction(
     };
   }
 
+  updateTag("grades");
   revalidatePath("/grades");
+  revalidatePath("/profile");
   return {
     ok: true,
     message: "Semester deleted.",

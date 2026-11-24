@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useState, useTransition, type ReactNode } from "react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
@@ -10,6 +10,7 @@ import {
   GraduationCap,
   KeyRound,
   LayoutGrid,
+  Loader2,
   LogOut,
   Menu,
   Moon,
@@ -25,10 +26,22 @@ import { logoutAction } from "@/app/actions/auth";
 import { useTheme } from "./theme-provider";
 import type { Profile, Semester, VisibilityGroupWithMembers } from "@/lib/types";
 
+function NavLinkPendingIndicator() {
+  const { pending } = useLinkStatus();
+  return (
+    <Loader2
+      aria-hidden
+      className={`h-3.5 w-3.5 shrink-0 animate-spin transition-opacity duration-150 ${
+        pending ? "opacity-75" : "opacity-0"
+      }`}
+    />
+  );
+}
+
 interface AppShellProps {
   profile: Profile;
   semesters: Semester[];
-  activeSemesterId: string | null;
+  activeSemesterId?: string | null;
   visibilityGroups?: VisibilityGroupWithMembers[];
   children: ReactNode;
 }
@@ -46,8 +59,18 @@ export function AppShell({
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSemesterPending, startSemesterTransition] = useTransition();
 
   const semesterParam = searchParams.get("semester");
+  const resolvedSemesterId =
+    activeSemesterId ??
+    (semesterParam
+      ? semesters.find((s) => s.id === semesterParam)?.id
+      : undefined) ??
+    semesters.find((s) => s.is_active)?.id ??
+    semesters.find((s) => !s.is_archived)?.id ??
+    semesters[0]?.id ??
+    null;
 
   const buildHref = (path: string) => {
     const params = new URLSearchParams();
@@ -81,7 +104,9 @@ export function AppShell({
       params.delete("semester");
     }
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    startSemesterTransition(() => {
+      router.push(query ? `${pathname}?${query}` : pathname);
+    });
   };
 
   const renderSidebarContent = (isMobile = false) => {
@@ -156,17 +181,21 @@ export function AppShell({
         {/* Semester Switcher */}
         {semesters.length > 0 && !isCompact && (
           <div className="px-3 pt-4">
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-1 mb-1.5">
-              Semester
+            <label className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-1 mb-1.5">
+              <span>Semester</span>
+              {isSemesterPending && (
+                <Loader2 className="h-3 w-3 animate-spin text-rose-500" />
+              )}
             </label>
             <select
               aria-label="Select semester"
-              value={activeSemesterId ?? ""}
+              value={resolvedSemesterId ?? ""}
+              disabled={isSemesterPending}
               onChange={(e) => {
                 handleSemesterChange(e.target.value);
                 if (isMobile) setMobileOpen(false);
               }}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-rose-400 cursor-pointer"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-rose-400 cursor-pointer disabled:opacity-60 transition-opacity"
             >
               {semesters.map((sem) => (
                 <option key={sem.id} value={sem.id}>
@@ -210,7 +239,12 @@ export function AppShell({
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {!isCompact && <span className="truncate">{item.label}</span>}
+                  {!isCompact && (
+                    <>
+                      <span className="truncate flex-1">{item.label}</span>
+                      <NavLinkPendingIndicator />
+                    </>
+                  )}
                 </Link>
               );
             })}
@@ -260,6 +294,7 @@ export function AppShell({
                     {!isCompact && (
                       <>
                         <span className="truncate flex-1">{group.name}</span>
+                        <NavLinkPendingIndicator />
                         <span className="text-[10px] opacity-65 shrink-0">
                           {group.memberIds.length}
                         </span>
