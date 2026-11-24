@@ -561,3 +561,25 @@ export async function getAdminProfileChangeRequests(
     migrationRequired: false,
   };
 }
+
+export async function getPendingProfileRequestsCount(): Promise<number> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  cacheTag("profile-requests");
+
+  if (!isSupabaseConfigured()) {
+    return 0;
+  }
+
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("profile_change_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  if (error) {
+    return 0;
+  }
+
+  return count ?? 0;
+}

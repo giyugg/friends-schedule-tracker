@@ -4,11 +4,15 @@ import { useState, useTransition, type ReactNode } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  BookOpen,
   Building2,
   CalendarDays,
+  CalendarPlus,
+  ChevronDown,
   Clock,
   GraduationCap,
   KeyRound,
+  Layers,
   LayoutGrid,
   Loader2,
   LogOut,
@@ -19,12 +23,33 @@ import {
   Shield,
   Sun,
   User,
+  UserCheck,
   Users,
   X,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { useTheme } from "./theme-provider";
-import type { Profile, Semester, VisibilityGroupWithMembers } from "@/lib/types";
+import {
+  ADMIN_TAB_LABELS,
+  isAdminTab,
+  type AdminTab,
+  type Profile,
+  type Semester,
+  type VisibilityGroupWithMembers,
+} from "@/lib/types";
+
+const ADMIN_TAB_ITEMS: {
+  id: AdminTab;
+  label: string;
+  icon: typeof BookOpen;
+}[] = [
+  { id: "schedules", label: ADMIN_TAB_LABELS.schedules, icon: BookOpen },
+  { id: "sections", label: ADMIN_TAB_LABELS.sections, icon: Layers },
+  { id: "directory", label: ADMIN_TAB_LABELS.directory, icon: Building2 },
+  { id: "accounts", label: ADMIN_TAB_LABELS.accounts, icon: Users },
+  { id: "requests", label: ADMIN_TAB_LABELS.requests, icon: UserCheck },
+  { id: "semesters", label: ADMIN_TAB_LABELS.semesters, icon: CalendarPlus },
+];
 
 function NavLinkPendingIndicator() {
   const { pending } = useLinkStatus();
@@ -43,6 +68,7 @@ interface AppShellProps {
   semesters: Semester[];
   activeSemesterId?: string | null;
   visibilityGroups?: VisibilityGroupWithMembers[];
+  pendingProfileRequestsCount?: number;
   children: ReactNode;
 }
 
@@ -51,6 +77,7 @@ export function AppShell({
   semesters,
   activeSemesterId,
   visibilityGroups = [],
+  pendingProfileRequestsCount = 0,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -60,6 +87,23 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSemesterPending, startSemesterTransition] = useTransition();
+
+  const isOnAdmin = pathname.startsWith("/admin");
+  const [adminOpen, setAdminOpen] = useState(isOnAdmin);
+  const [prevOnAdmin, setPrevOnAdmin] = useState(isOnAdmin);
+  if (isOnAdmin !== prevOnAdmin) {
+    setPrevOnAdmin(isOnAdmin);
+    if (isOnAdmin) {
+      setAdminOpen(true);
+    }
+  }
+
+  const tabParam = searchParams.get("tab");
+  const defaultAdminTab: AdminTab =
+    semesters.length === 0 ? "semesters" : "schedules";
+  const activeAdminTab: AdminTab = isAdminTab(tabParam)
+    ? tabParam
+    : defaultAdminTab;
 
   const semesterParam = searchParams.get("semester");
   const resolvedSemesterId =
@@ -79,6 +123,13 @@ export function AppShell({
     return query ? `${path}?${query}` : path;
   };
 
+  const buildAdminTabHref = (tabId: AdminTab) => {
+    const params = new URLSearchParams();
+    if (semesterParam) params.set("semester", semesterParam);
+    params.set("tab", tabId);
+    return `/admin?${params.toString()}`;
+  };
+
   // Show groups the user is associated with (for admins, show all groups)
   const associatedGroups =
     profile.role === "admin"
@@ -91,9 +142,6 @@ export function AppShell({
     { href: "/free-time", label: "Free Time", icon: Clock },
     { href: "/grades", label: "Grades", icon: GraduationCap },
     { href: "/profile", label: "Profile", icon: User },
-    ...(profile.role === "admin"
-      ? [{ href: "/admin", label: "Admin", icon: Shield }]
-      : []),
   ];
 
   const handleSemesterChange = (nextSemesterId: string) => {
@@ -248,6 +296,108 @@ export function AppShell({
                 </Link>
               );
             })}
+
+            {/* Admin Expandable Dropdown */}
+            {profile.role === "admin" && (
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  aria-expanded={!isCompact && adminOpen}
+                  title={isCompact ? "Admin" : undefined}
+                  onClick={() => {
+                    if (isCompact) {
+                      setCollapsed(false);
+                      setAdminOpen(true);
+                    } else {
+                      setAdminOpen((open) => !open);
+                    }
+                  }}
+                  className={`relative flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                    isCompact
+                      ? "justify-center h-10 w-10 mx-auto"
+                      : "w-full px-3 py-2.5 text-left"
+                  } ${
+                    isOnAdmin && (isCompact || !adminOpen)
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
+                      : isOnAdmin && adminOpen
+                        ? "bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 font-semibold"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                  }`}
+                >
+                  <Shield className="h-4 w-4 shrink-0" />
+                  {isCompact && pendingProfileRequestsCount > 0 && (
+                    <span
+                      aria-label={`${pendingProfileRequestsCount} pending profile requests`}
+                      className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950"
+                    />
+                  )}
+                  {!isCompact && (
+                    <>
+                      <span className="truncate flex-1">Admin</span>
+                      {!adminOpen && pendingProfileRequestsCount > 0 && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+                            isOnAdmin
+                              ? "bg-rose-500 text-white"
+                              : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                          }`}
+                        >
+                          {pendingProfileRequestsCount}
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 opacity-70 transition-transform duration-150 ${
+                          adminOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {!isCompact && adminOpen && (
+                  <div className="pl-3 ml-3.5 border-l border-slate-200/80 dark:border-slate-800 space-y-0.5 py-0.5">
+                    {ADMIN_TAB_ITEMS.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive =
+                        isOnAdmin && activeAdminTab === subItem.id;
+                      const badgeCount =
+                        subItem.id === "requests"
+                          ? pendingProfileRequestsCount
+                          : 0;
+                      return (
+                        <Link
+                          key={subItem.id}
+                          href={buildAdminTabHref(subItem.id)}
+                          onClick={() => isMobile && setMobileOpen(false)}
+                          className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-colors ${
+                            isSubActive
+                              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-semibold shadow-xs"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                          }`}
+                        >
+                          <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate flex-1">
+                            {subItem.label}
+                          </span>
+                          <NavLinkPendingIndicator />
+                          {badgeCount > 0 && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
+                                isSubActive
+                                  ? "bg-rose-500 text-white"
+                                  : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                              }`}
+                            >
+                              {badgeCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Associated Circles & Organizations */}

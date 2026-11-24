@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Archive,
   ArrowRight,
@@ -58,28 +59,23 @@ import {
   resolveColorKey,
   TIME_OPTIONS,
 } from "@/lib/schedule-utils";
-import type {
-  ColorKey,
-  DayOfWeek,
-  Profile,
-  ProfileChangeRequestWithUser,
-  ScheduleCategory,
-  ScheduleEntry,
-  ScheduleModality,
-  SectionWithMembers,
-  Semester,
-  UserRole,
-  VisibilityGroupType,
-  VisibilityGroupWithMembers,
+import {
+  ADMIN_TAB_LABELS,
+  isAdminTab,
+  type AdminTab,
+  type ColorKey,
+  type DayOfWeek,
+  type Profile,
+  type ProfileChangeRequestWithUser,
+  type ScheduleCategory,
+  type ScheduleEntry,
+  type ScheduleModality,
+  type SectionWithMembers,
+  type Semester,
+  type UserRole,
+  type VisibilityGroupType,
+  type VisibilityGroupWithMembers,
 } from "@/lib/types";
-
-type AdminTab =
-  | "schedules"
-  | "sections"
-  | "directory"
-  | "accounts"
-  | "requests"
-  | "semesters";
 
 interface AdminDashboardProps {
   currentAdminId: string;
@@ -92,6 +88,7 @@ interface AdminDashboardProps {
   profileRequests: ProfileChangeRequestWithUser[];
   requestsMigrationRequired?: boolean;
   hasServiceRoleKey: boolean;
+  initialTab?: AdminTab;
 }
 
 function generateTempPassword(): string {
@@ -114,24 +111,31 @@ export function AdminDashboard({
   profileRequests,
   requestsMigrationRequired = false,
   hasServiceRoleKey,
+  initialTab,
 }: AdminDashboardProps) {
-  const [tab, setTab] = useState<AdminTab>(
-    semesters.length === 0 ? "semesters" : "schedules"
-  );
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const defaultTab: AdminTab =
+    semesters.length === 0 ? "semesters" : "schedules";
+  const tab: AdminTab = isAdminTab(tabParam)
+    ? tabParam
+    : (initialTab ?? defaultTab);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{
+    tab: AdminTab;
     type: "success" | "error";
     text: string;
   } | null>(null);
 
   const runAction = (fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) => {
+    const actionTab = tab;
     setFeedback(null);
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        setFeedback({ type: "error", text: res.error ?? "Something went wrong." });
+        setFeedback({ tab: actionTab, type: "error", text: res.error ?? "Something went wrong." });
       } else if (res.message) {
-        setFeedback({ type: "success", text: res.message });
+        setFeedback({ tab: actionTab, type: "success", text: res.message });
       }
     });
   };
@@ -340,35 +344,33 @@ export function AdminDashboard({
     [profileRequests]
   );
 
-  const tabs: {
-    id: AdminTab;
-    label: string;
-    icon: typeof BookOpen;
-    badge?: number;
-  }[] = [
-    { id: "schedules", label: "Schedules", icon: BookOpen },
-    { id: "sections", label: "Sections & Rosters", icon: Layers },
-    { id: "directory", label: "Directory", icon: Building2 },
-    { id: "accounts", label: "Friend Accounts", icon: Users },
-    {
-      id: "requests",
-      label: "Profile Requests",
-      icon: UserCheck,
-      badge: pendingProfileRequests.length,
-    },
-    { id: "semesters", label: "Semesters", icon: CalendarPlus },
-  ];
+  const tabIcons: Record<AdminTab, typeof BookOpen> = {
+    schedules: BookOpen,
+    sections: Layers,
+    directory: Building2,
+    accounts: Users,
+    requests: UserCheck,
+    semesters: CalendarPlus,
+  };
+  const ActiveTabIcon = tabIcons[tab];
+  const visibleFeedback = feedback && feedback.tab === tab ? feedback : null;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Shield className="h-6 w-6 text-rose-500" />
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Shield className="h-6 w-6 text-rose-500" />
+              Admin Dashboard
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-950 text-xs font-semibold">
+              <ActiveTabIcon className="h-3.5 w-3.5" />
+              {ADMIN_TAB_LABELS[tab]}
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage semesters, sections, class schedules, and friend accounts.
             {activeSemester && (
               <>
@@ -383,53 +385,16 @@ export function AdminDashboard({
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {tabs.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setTab(t.id);
-                setFeedback(null);
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition cursor-pointer ${
-                active
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                  : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-              {typeof t.badge === "number" && t.badge > 0 && (
-                <span
-                  className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
-                    active
-                      ? "bg-rose-500 text-white"
-                      : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                  }`}
-                >
-                  {t.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Feedback Banner */}
-      {feedback && (
+      {visibleFeedback && (
         <div
           className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-            feedback.type === "error"
+            visibleFeedback.type === "error"
               ? "border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300"
               : "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300"
           }`}
         >
-          {feedback.text}
+          {visibleFeedback.text}
         </div>
       )}
 

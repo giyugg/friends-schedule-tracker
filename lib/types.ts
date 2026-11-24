@@ -163,3 +163,32 @@ export interface ProfileChangeRequestWithUser extends ProfileChangeRequest {
   user_display_name: string;
   reviewer_display_name: string | null;
 }
+
+export const ADMIN_TAB_IDS = [
+  "schedules",
+  "sections",
+  "directory",
+  "accounts",
+  "requests",
+  "semesters",
+] as const;
+
+export type AdminTab = (typeof ADMIN_TAB_IDS)[number];
+
+export const ADMIN_TAB_LABELS: Record<AdminTab, string> = {
+  schedules: "Schedules",
+  sections: "Sections & Rosters",
+  directory: "Directory",
+  accounts: "Friend Accounts",
+  requests: "Profile Requests",
+  semesters: "Semesters",
+};
+
+export function isAdminTab(
+  value: string | null | undefined
+): value is AdminTab {
+  return (
+    typeof value === "string" &&
+    (ADMIN_TAB_IDS as readonly string[]).includes(value)
+  );
+}
