@@ -7,6 +7,8 @@ import type {
   GradeTerm,
   GradeTermWithEntries,
   Profile,
+  ProfileChangeRequest,
+  ProfileChangeRequestWithUser,
   ScheduleEntry,
   SectionMember,
   SectionWithMembers,
@@ -367,6 +369,176 @@ export async function getGradesBundle(
     activeSemester,
     visibilityGroups,
     gradeTerms,
+    migrationRequired: false,
+  };
+}
+
+export interface ProfileBundle {
+  semesters: Semester[];
+  activeSemester: Semester | null;
+  visibilityGroups: VisibilityGroupWithMembers[];
+  userSection: SectionWithMembers | null;
+  sectionEntries: ScheduleEntry[];
+  gradeTerms: GradeTermWithEntries[];
+  gradesMigrationRequired: boolean;
+  changeRequests: ProfileChangeRequest[];
+  requestsMigrationRequired: boolean;
+}
+
+export async function getProfileBundle(
+  userId: string,
+  requestedSemesterId?: string
+): Promise<ProfileBundle> {
+  if (!isSupabaseConfigured()) {
+    return {
+      semesters: [],
+      activeSemester: null,
+      visibilityGroups: [],
+      userSection: null,
+      sectionEntries: [],
+      gradeTerms: [],
+      gradesMigrationRequired: false,
+      changeRequests: [],
+      requestsMigrationRequired: false,
+    };
+  }
+
+  const supabase = await createClient();
+
+  const [
+    scheduleBundle,
+    { data: termsData, error: termsError },
+    { data: gradeEntriesData, error: gradeEntriesError },
+    { data: requestsData, error: requestsError },
+  ] = await Promise.all([
+    getScheduleBundle(requestedSemesterId),
+    supabase
+      .from("grade_terms")
+      .select("*")
+      .eq("user_id", userId)
+      .order("academic_year", { ascending: true }),
+    supabase
+      .from("grade_entries")
+      .select("*")
+      .eq("user_id", userId)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("profile_change_requests")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  const userSection =
+    scheduleBundle.sections.find((sec) =>
+      sec.members.some((m) => m.id === userId)
+    ) ?? null;
+
+  const sectionEntries = userSection
+    ? scheduleBundle.entries.filter((e) => e.section_id === userSection.id)
+    : [];
+
+  const gradesMigrationRequired =
+    termsError?.code === "42P01" ||
+    gradeEntriesError?.code === "42P01" ||
+    termsError?.code === "PGRST205" ||
+    gradeEntriesError?.code === "PGRST205";
+
+  let gradeTerms: GradeTermWithEntries[] = [];
+  if (!gradesMigrationRequired) {
+    const entriesByTerm = new Map<string, GradeEntry[]>();
+    for (const raw of (gradeEntriesData ?? []) as (Omit<GradeEntry, "units"> & {
+      units: number | string;
+    })[]) {
+      const entry: GradeEntry = {
+        ...raw,
+        units: Number(raw.units),
+      };
+      const list = entriesByTerm.get(entry.term_id) ?? [];
+      list.push(entry);
+      entriesByTerm.set(entry.term_id, list);
+    }
+
+    gradeTerms = sortGradeTerms(
+      ((termsData ?? []) as GradeTerm[]).map((term) => ({
+        ...term,
+        entries: entriesByTerm.get(term.id) ?? [],
+      }))
+    );
+  }
+
+  const requestsMigrationRequired =
+    requestsError?.code === "42P01" || requestsError?.code === "PGRST205";
+
+  const changeRequests = requestsMigrationRequired
+    ? []
+    : ((requestsData ?? []) as ProfileChangeRequest[]);
+
+  return {
+    semesters: scheduleBundle.semesters,
+    activeSemester: scheduleBundle.activeSemester,
+    visibilityGroups: scheduleBundle.visibilityGroups,
+    userSection,
+    sectionEntries,
+    gradeTerms,
+    gradesMigrationRequired,
+    changeRequests,
+    requestsMigrationRequired,
+  };
+}
+
+export interface AdminProfileRequestsBundle {
+  requests: ProfileChangeRequestWithUser[];
+  migrationRequired: boolean;
+}
+
+export async function getAdminProfileChangeRequests(
+  profiles: Profile[]
+): Promise<AdminProfileRequestsBundle> {
+  if (!isSupabaseConfigured()) {
+    return { requests: [], migrationRequired: false };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profile_change_requests")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error?.code === "42P01" || error?.code === "PGRST205") {
+    return { requests: [], migrationRequired: true };
+  }
+
+  const profileMap = new Map(profiles.map((p) => [p.id, p]));
+  const rawRequests = (data ?? []) as ProfileChangeRequest[];
+
+  const enriched: ProfileChangeRequestWithUser[] = rawRequests.map((req) => {
+    const user = profileMap.get(req.user_id);
+    const reviewer = req.reviewed_by ? profileMap.get(req.reviewed_by) : null;
+    return {
+      ...req,
+      user_email: user?.email ?? "Unknown user",
+      user_display_name: user?.display_name ?? req.current_display_name,
+      reviewer_display_name: reviewer?.display_name ?? null,
+    };
+  });
+
+  // Sort pending requests first (oldest pending first so queue is FIFO), then resolved newest first
+  enriched.sort((a, b) => {
+    const aPending = a.status === "pending" ? 0 : 1;
+    const bPending = b.status === "pending" ? 0 : 1;
+    if (aPending !== bPending) return aPending - bPending;
+    if (aPending === 0) {
+      return a.created_at.localeCompare(b.created_at);
+    }
+    return b.created_at.localeCompare(a.created_at);
+  });
+
+  return {
+    requests: enriched,
     migrationRequired: false,
   };
 }

@@ -17,6 +17,7 @@ import {
   PanelLeftOpen,
   Shield,
   Sun,
+  User,
   Users,
   X,
 } from "lucide-react";
@@ -66,6 +67,7 @@ export function AppShell({
     { href: "/weekly", label: "Section Weekly", icon: CalendarDays },
     { href: "/free-time", label: "Free Time", icon: Clock },
     { href: "/grades", label: "Grades", icon: GraduationCap },
+    { href: "/profile", label: "Profile", icon: User },
     ...(profile.role === "admin"
       ? [{ href: "/admin", label: "Admin", icon: Shield }]
       : []),
@@ -273,7 +275,16 @@ export function AppShell({
         {/* Footer: Profile + Theme + Password + Sign Out */}
         <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5">
           {!isCompact && (
-            <div className="px-1.5 leading-tight">
+            <Link
+              href={buildHref("/profile")}
+              onClick={() => isMobile && setMobileOpen(false)}
+              title="View your profile"
+              className={`block rounded-xl px-2 py-1.5 leading-tight transition-colors ${
+                pathname.startsWith("/profile")
+                  ? "bg-slate-100 dark:bg-slate-800/90"
+                  : "hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
+              }`}
+            >
               <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
                 <span className="truncate">{profile.display_name}</span>
                 {profile.role === "admin" && (
@@ -285,7 +296,7 @@ export function AppShell({
               <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                 {profile.email}
               </div>
-            </div>
+            </Link>
           )}
 
           <div

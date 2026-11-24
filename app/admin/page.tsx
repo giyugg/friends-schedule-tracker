@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
-import { getScheduleBundle } from "@/lib/data";
+import {
+  getAdminProfileChangeRequests,
+  getScheduleBundle,
+} from "@/lib/data";
 import {
   isSupabaseAdminConfigured,
   isSupabaseConfigured,
@@ -24,6 +27,7 @@ async function AdminContent({
     searchParams,
   ]);
   const bundle = await getScheduleBundle(params.semester);
+  const requestsBundle = await getAdminProfileChangeRequests(bundle.profiles);
 
   return (
     <AppShell
@@ -40,6 +44,8 @@ async function AdminContent({
         entries={bundle.entries}
         profiles={bundle.profiles}
         visibilityGroups={bundle.visibilityGroups}
+        profileRequests={requestsBundle.requests}
+        requestsMigrationRequired={requestsBundle.migrationRequired}
         hasServiceRoleKey={isSupabaseAdminConfigured()}
       />
     </AppShell>

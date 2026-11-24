@@ -138,3 +138,28 @@ export interface GradeEntry {
 export interface GradeTermWithEntries extends GradeTerm {
   entries: GradeEntry[];
 }
+
+export type ProfileChangeRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+
+export interface ProfileChangeRequest {
+  id: string;
+  user_id: string;
+  current_display_name: string;
+  requested_display_name: string;
+  status: ProfileChangeRequestStatus;
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileChangeRequestWithUser extends ProfileChangeRequest {
+  user_email: string;
+  user_display_name: string;
+  reviewer_display_name: string | null;
+}
