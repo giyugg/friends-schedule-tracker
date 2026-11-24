@@ -38,6 +38,7 @@ import {
   requestDisplayNameChangeAction,
 } from "@/app/actions/profile";
 import { useTheme } from "./theme-provider";
+import { getSectionAcademicInfo } from "@/lib/academic-catalog";
 import {
   DAYS,
   formatCompactDuration,
@@ -505,6 +506,20 @@ export function ProfileView({
                   {profile.role === "admin" && <Shield className="h-3 w-3" />}
                   {profile.role === "admin" ? "Admin" : "Member"}
                 </span>
+                {userSection &&
+                  (() => {
+                    const academic = getSectionAcademicInfo(userSection);
+                    if (!academic.college) return null;
+                    return (
+                      <span
+                        title={academic.college.name}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-900"
+                      >
+                        <GraduationCap className="h-3 w-3" />
+                        {academic.college.code}
+                      </span>
+                    );
+                  })()}
                 {userSection && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300">
                     <Layers className="h-3 w-3" />
@@ -512,6 +527,37 @@ export function ProfileView({
                   </span>
                 )}
               </div>
+              {userSection &&
+                (() => {
+                  const academic = getSectionAcademicInfo(userSection);
+                  if (!academic.college && !academic.program) return null;
+                  return (
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {academic.college && (
+                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                          {academic.college.name}
+                        </span>
+                      )}
+                      {academic.college && academic.program && (
+                        <span className="text-slate-400 dark:text-slate-500">
+                          {" "}
+                          —{" "}
+                        </span>
+                      )}
+                      {academic.program && (
+                        <span>
+                          {academic.program.name}
+                          {academic.specialization && (
+                            <span className="text-slate-400 dark:text-slate-500">
+                              {" "}
+                              · {academic.specialization}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5 truncate">
                   <Mail className="h-3.5 w-3.5 shrink-0" />
@@ -1035,11 +1081,48 @@ export function ProfileView({
                 Schedule &amp; Section Snapshot
               </h3>
               {userSection && (
-                <span className="px-2.5 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-xs font-semibold border border-sky-200/70 dark:border-sky-900/60">
-                  {userSection.code}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const academic = getSectionAcademicInfo(userSection);
+                    if (!academic.college) return null;
+                    return (
+                      <span
+                        title={academic.college.name}
+                        className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold border border-indigo-200/70 dark:border-indigo-900/60"
+                      >
+                        {academic.college.code}
+                      </span>
+                    );
+                  })()}
+                  <span className="px-2.5 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-xs font-semibold border border-sky-200/70 dark:border-sky-900/60">
+                    {userSection.code}
+                  </span>
+                </div>
               )}
             </div>
+            {userSection &&
+              (() => {
+                const academic = getSectionAcademicInfo(userSection);
+                if (!academic.college && !academic.program) return null;
+                return (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2">
+                    {academic.college && (
+                      <span className="font-medium text-slate-700 dark:text-slate-200">
+                        {academic.college.name}
+                      </span>
+                    )}
+                    {academic.college && academic.program && " — "}
+                    {academic.program && (
+                      <>
+                        {academic.program.name}
+                        {academic.specialization
+                          ? ` · ${academic.specialization}`
+                          : ""}
+                      </>
+                    )}
+                  </p>
+                );
+              })()}
 
             {userSection ? (
               <>
@@ -1163,7 +1246,7 @@ export function ProfileView({
                       Cumulative GWA
                     </div>
                     <div className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                      {formatGwa(latinEval.cumulativeStats.roundedGwa)}
+                      {formatGwa(latinEval.cumulativeStats.roundedGwa, 2)}
                     </div>
                   </div>
                   <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 p-3">

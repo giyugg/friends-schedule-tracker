@@ -37,6 +37,10 @@ import type {
   VisibilityGroupWithMembers,
 } from "@/lib/types";
 import { ClassDetailModal } from "./class-detail-modal";
+import {
+  formatSectionTooltip,
+  getSectionAcademicInfo,
+} from "@/lib/academic-catalog";
 
 interface GroupDashboardViewProps {
   group: VisibilityGroupWithMembers;
@@ -317,10 +321,33 @@ export function GroupDashboardView({
                           </span>
                         </div>
                       )}
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        {memberSections.length > 0
-                          ? memberSections.map((s) => s.code).join(", ")
-                          : "No section assigned"}
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-1">
+                        {memberSections.length > 0 ? (
+                          memberSections.map((sec, idx) => {
+                            const academic = getSectionAcademicInfo(sec);
+                            return (
+                              <span
+                                key={sec.id}
+                                title={formatSectionTooltip(sec)}
+                                className="inline-flex items-center gap-1"
+                              >
+                                {idx > 0 && (
+                                  <span className="text-slate-300 dark:text-slate-600">
+                                    ·
+                                  </span>
+                                )}
+                                {academic.college && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-900">
+                                    {academic.college.code}
+                                  </span>
+                                )}
+                                <span>{sec.code}</span>
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span>No section assigned</span>
+                        )}
                       </div>
                     </div>
 

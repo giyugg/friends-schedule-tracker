@@ -6,10 +6,16 @@ import {
   Building2,
   CalendarX2,
   Filter,
+  GraduationCap,
   Search,
   Sparkles,
   Users,
 } from "lucide-react";
+import {
+  COLLEGES,
+  formatSectionTooltip,
+  getSectionAcademicInfo,
+} from "@/lib/academic-catalog";
 import {
   COLOR_PRESETS,
   DAYS,
@@ -111,6 +117,21 @@ export function DailyGridView({
         .filter((item) => item.sectionIds.size > 0),
     [groups, sections]
   );
+
+  const collegePresets = useMemo(() => {
+    const byCollege = new Map<string, Set<string>>();
+    for (const sec of sections) {
+      const info = getSectionAcademicInfo(sec);
+      if (!info.college) continue;
+      const set = byCollege.get(info.college.code) ?? new Set<string>();
+      set.add(sec.id);
+      byCollege.set(info.college.code, set);
+    }
+    return COLLEGES.filter((c) => byCollege.has(c.code)).map((college) => ({
+      college,
+      sectionIds: byCollege.get(college.code) ?? new Set<string>(),
+    }));
+  }, [sections]);
 
   const selectGroupPreset = (sectionIds: Set<string>) => {
     setHiddenSectionIds(
@@ -313,19 +334,50 @@ export function DailyGridView({
           </>
         )}
 
+        {collegePresets.length > 0 && (
+          <>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+            {collegePresets.map(({ college, sectionIds }) => {
+              const isPresetActive =
+                visibleSections.length === sectionIds.size &&
+                visibleSections.every((s) => sectionIds.has(s.id));
+              return (
+                <button
+                  key={college.code}
+                  type="button"
+                  onClick={() => selectGroupPreset(sectionIds)}
+                  title={`${college.name} (${sectionIds.size} section${sectionIds.size === 1 ? "" : "s"})`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                    isPresetActive
+                      ? "border-indigo-400 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-200 font-semibold"
+                      : "border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <GraduationCap className="h-3 w-3 shrink-0 text-indigo-500" />
+                  <span>{college.code}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
+
         <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
         {sections.map((section) => {
           const isVisible = !hiddenSectionIds.has(section.id);
+          const tooltip = [
+            formatSectionTooltip(section),
+            section.members.length > 0
+              ? formatMemberNames(section.members)
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" — ");
           return (
             <button
               key={section.id}
               type="button"
               onClick={() => toggleSection(section.id)}
-              title={
-                section.members.length > 0
-                  ? formatMemberNames(section.members)
-                  : section.code
-              }
+              title={tooltip}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
                 isVisible
                   ? "border-slate-300 dark:border-slate-700 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
@@ -363,15 +415,22 @@ export function DailyGridView({
                 const isMine = section.members.some(
                   (m) => m.id === currentUserId
                 );
+                const academic = getSectionAcademicInfo(section);
                 return (
                   <div
                     key={section.id}
+                    title={formatSectionTooltip(section)}
                     className={`min-w-0 px-2 py-1.5 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800 flex flex-col justify-center ${
                       isMine ? "bg-rose-50/60 dark:bg-rose-950/30" : ""
                     }`}
                   >
-                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {section.code}
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate flex items-center justify-center gap-1">
+                      {academic.college && (
+                        <span className="shrink-0 px-1 py-0.2 rounded text-[9px] font-bold uppercase bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
+                          {academic.college.code}
+                        </span>
+                      )}
+                      <span className="truncate">{section.code}</span>
                     </div>
                     <div className="text-[10px] leading-snug text-slate-500 dark:text-slate-400 mt-0.5">
                       {section.members.length > 0 ? (

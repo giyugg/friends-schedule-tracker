@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarX2, Sparkles, Users } from "lucide-react";
+import { CalendarX2, GraduationCap, Sparkles, Users } from "lucide-react";
+import { COLLEGES, getSectionAcademicInfo } from "@/lib/academic-catalog";
 import {
   DAYS,
   formatTime12h,
@@ -70,6 +71,32 @@ export function SectionWeeklyView({
     return map;
   }, [entries, activeSection]);
 
+  const activeAcademic = activeSection
+    ? getSectionAcademicInfo(activeSection)
+    : null;
+
+  const groupedSections = useMemo(() => {
+    const byCollege = new Map<string, SectionWithMembers[]>();
+    const unassigned: SectionWithMembers[] = [];
+    for (const sec of sections) {
+      const info = getSectionAcademicInfo(sec);
+      if (info.college) {
+        const list = byCollege.get(info.college.code) ?? [];
+        list.push(sec);
+        byCollege.set(info.college.code, list);
+      } else {
+        unassigned.push(sec);
+      }
+    }
+    const groups = COLLEGES.filter((c) => byCollege.has(c.code)).map(
+      (college) => ({
+        college,
+        sections: byCollege.get(college.code) ?? [],
+      })
+    );
+    return { groups, unassigned };
+  }, [sections]);
+
   if (!semester || !activeSection) {
     return (
       <div className="max-w-2xl mx-auto mt-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-10 text-center">
@@ -100,7 +127,16 @@ export function SectionWeeklyView({
       {/* Section Header & Switcher */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {activeAcademic?.college && (
+              <span
+                title={activeAcademic.college.name}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-900"
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
+                {activeAcademic.college.code}
+              </span>
+            )}
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
               {activeSection.code}
             </h1>
@@ -108,6 +144,29 @@ export function SectionWeeklyView({
               {semester.name}
             </span>
           </div>
+          {(activeAcademic?.college || activeAcademic?.program) && (
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {activeAcademic.college && (
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  {activeAcademic.college.name}
+                </span>
+              )}
+              {activeAcademic.college && activeAcademic.program && (
+                <span className="text-slate-400 dark:text-slate-500"> — </span>
+              )}
+              {activeAcademic.program && (
+                <span>
+                  {activeAcademic.program.name}
+                  {activeAcademic.specialization && (
+                    <span className="text-slate-400 dark:text-slate-500">
+                      {" "}
+                      · {activeAcademic.specialization}
+                    </span>
+                  )}
+                </span>
+              )}
+            </p>
+          )}
           <div className="text-sm text-slate-500 dark:text-slate-400 flex items-start gap-1.5 mt-1">
             <Users className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
@@ -138,11 +197,37 @@ export function SectionWeeklyView({
             onChange={(e) => setSelectedSectionId(e.target.value)}
             className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-sm font-semibold outline-none focus:border-rose-400 cursor-pointer"
           >
-            {sections.map((sec) => (
-              <option key={sec.id} value={sec.id}>
-                {sec.code}
-              </option>
-            ))}
+            {groupedSections.groups.length > 0 ? (
+              <>
+                {groupedSections.groups.map(({ college, sections: list }) => (
+                  <optgroup
+                    key={college.code}
+                    label={`${college.code} — ${college.name}`}
+                  >
+                    {list.map((sec) => (
+                      <option key={sec.id} value={sec.id}>
+                        {sec.code}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+                {groupedSections.unassigned.length > 0 && (
+                  <optgroup label="Other Sections">
+                    {groupedSections.unassigned.map((sec) => (
+                      <option key={sec.id} value={sec.id}>
+                        {sec.code}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </>
+            ) : (
+              sections.map((sec) => (
+                <option key={sec.id} value={sec.id}>
+                  {sec.code}
+                </option>
+              ))
+            )}
           </select>
         </div>
       </div>

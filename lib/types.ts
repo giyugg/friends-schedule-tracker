@@ -36,7 +36,10 @@ export interface Section {
   id: string;
   semester_id: string;
   code: string;
-  display_order: number;
+  college_code: string | null;
+  program_code: string | null;
+  section_name: string | null;
+  specialization: string | null;
   created_at: string;
 }
 

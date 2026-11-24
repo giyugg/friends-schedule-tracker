@@ -18,6 +18,7 @@ import type {
   VisibilityGroupWithMembers,
 } from "./types";
 import { sortGradeTerms } from "./grades-utils";
+import { sortSections } from "./academic-catalog";
 
 export interface ShellData {
   semesters: Semester[];
@@ -166,7 +167,6 @@ export async function getScheduleBundle(
     .from("sections")
     .select("*")
     .eq("semester_id", activeSemester.id)
-    .order("display_order", { ascending: true })
     .order("code", { ascending: true });
 
   const rawSections = sectionsData ?? [];
@@ -214,12 +214,14 @@ export async function getScheduleBundle(
     membersBySection.set(row.section_id, list);
   }
 
-  const sections: SectionWithMembers[] = rawSections.map((section) => ({
-    ...section,
-    members: (membersBySection.get(section.id) ?? []).sort((a, b) =>
-      a.display_name.localeCompare(b.display_name)
-    ),
-  }));
+  const sections: SectionWithMembers[] = sortSections(
+    rawSections.map((section) => ({
+      ...section,
+      members: (membersBySection.get(section.id) ?? []).sort((a, b) =>
+        a.display_name.localeCompare(b.display_name)
+      ),
+    }))
+  );
 
   const entries = (entriesData ?? []) as ScheduleEntry[];
 

@@ -23,6 +23,10 @@ create table if not exists public.sections (
   id uuid primary key default gen_random_uuid(),
   semester_id uuid not null references public.semesters(id) on delete cascade,
   code text not null,
+  college_code text,
+  program_code text,
+  section_name text,
+  specialization text,
   display_order integer not null default 0,
   created_at timestamptz not null default now(),
   unique (semester_id, code)
@@ -30,6 +34,9 @@ create table if not exists public.sections (
 
 create index if not exists sections_semester_order_idx
   on public.sections (semester_id, display_order, code);
+
+create index if not exists sections_college_program_idx
+  on public.sections (semester_id, college_code, program_code);
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
