@@ -43,7 +43,7 @@ export async function requireProfile(): Promise<Profile> {
 export async function requireAdmin(): Promise<Profile> {
   const profile = await requireProfile();
   if (profile.role !== "admin") {
-    redirect("/daily");
+    redirect("/profile");
   }
   return profile;
 }

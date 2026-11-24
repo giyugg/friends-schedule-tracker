@@ -83,13 +83,13 @@ export async function proxy(request: NextRequest) {
 
     if (isLoginRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = mustChange ? "/change-password" : "/daily";
+      url.pathname = mustChange ? "/change-password" : "/profile";
       return NextResponse.redirect(url);
     }
 
     if (isAdminRoute && !isAdmin) {
       const url = request.nextUrl.clone();
-      url.pathname = "/daily";
+      url.pathname = "/profile";
       return NextResponse.redirect(url);
     }
   }

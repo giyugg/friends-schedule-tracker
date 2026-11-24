@@ -382,6 +382,9 @@ export interface ProfileBundle {
   visibilityGroups: VisibilityGroupWithMembers[];
   userSection: SectionWithMembers | null;
   sectionEntries: ScheduleEntry[];
+  visibleProfiles: Profile[];
+  visibleSections: SectionWithMembers[];
+  visibleEntries: ScheduleEntry[];
   gradeTerms: GradeTermWithEntries[];
   gradesMigrationRequired: boolean;
   changeRequests: ProfileChangeRequest[];
@@ -411,6 +414,9 @@ export async function getProfileBundle(
       visibilityGroups: [],
       userSection: null,
       sectionEntries: [],
+      visibleProfiles: [],
+      visibleSections: [],
+      visibleEntries: [],
       gradeTerms: [],
       gradesMigrationRequired: false,
       changeRequests: [],
@@ -497,6 +503,9 @@ export async function getProfileBundle(
     visibilityGroups: scheduleBundle.visibilityGroups,
     userSection,
     sectionEntries,
+    visibleProfiles: scheduleBundle.profiles,
+    visibleSections: scheduleBundle.sections,
+    visibleEntries: scheduleBundle.entries,
     gradeTerms,
     gradesMigrationRequired,
     changeRequests,

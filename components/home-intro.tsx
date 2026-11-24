@@ -50,10 +50,10 @@ export function HomeIntro({ isSignedIn, displayName }: HomeIntroProps) {
             </button>
 
             <Link
-              href={isSignedIn ? "/daily" : "/login"}
+              href={isSignedIn ? "/profile" : "/login"}
               className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5"
             >
-              {isSignedIn ? "Open Schedule" : "Sign In"}
+              {isSignedIn ? "Open Profile" : "Sign In"}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -86,10 +86,10 @@ export function HomeIntro({ isSignedIn, displayName }: HomeIntroProps) {
             {isSignedIn ? (
               <>
                 <Link
-                  href="/daily"
+                  href="/profile"
                   className="px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-semibold text-sm hover:opacity-90 transition flex items-center gap-2 shadow-sm"
                 >
-                  Go to Daily Grid
+                  Go to My Profile
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link

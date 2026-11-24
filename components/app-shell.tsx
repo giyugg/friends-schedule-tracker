@@ -137,11 +137,11 @@ export function AppShell({
       : visibilityGroups.filter((g) => g.memberIds.includes(profile.id));
 
   const navItems = [
+    { href: "/profile", label: "Profile", icon: User },
     { href: "/daily", label: "Daily Grid", icon: LayoutGrid },
     { href: "/weekly", label: "Section Weekly", icon: CalendarDays },
     { href: "/free-time", label: "Free Time", icon: Clock },
     { href: "/grades", label: "Grades", icon: GraduationCap },
-    { href: "/profile", label: "Profile", icon: User },
   ];
 
   const handleSemesterChange = (nextSemesterId: string) => {

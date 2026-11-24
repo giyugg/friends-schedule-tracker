@@ -78,7 +78,7 @@ export async function loginAction(
     redirect("/change-password");
   }
 
-  redirect("/daily");
+  redirect("/profile");
 }
 
 export async function logoutAction() {
@@ -144,5 +144,5 @@ export async function changePasswordAction(
   updateTag("profile");
   updateTag("shell");
 
-  redirect("/daily");
+  redirect("/profile");
 }

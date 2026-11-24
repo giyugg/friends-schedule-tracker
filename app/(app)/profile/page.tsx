@@ -27,6 +27,9 @@ async function ProfileContent({
       activeSemester={bundle.activeSemester}
       userSection={bundle.userSection}
       sectionEntries={bundle.sectionEntries}
+      visibleProfiles={bundle.visibleProfiles}
+      visibleSections={bundle.visibleSections}
+      visibleEntries={bundle.visibleEntries}
       visibilityGroups={bundle.visibilityGroups}
       gradeTerms={bundle.gradeTerms}
       gradesMigrationRequired={bundle.gradesMigrationRequired}
