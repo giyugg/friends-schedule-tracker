@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { ChangePasswordForm } from "@/components/change-password-form";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 
 async function ChangePasswordContent() {
   if (!isSupabaseConfigured()) {

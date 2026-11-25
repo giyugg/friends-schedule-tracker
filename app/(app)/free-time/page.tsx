@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
 import { getScheduleBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { FreeTimeView } from "@/components/free-time-view";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { FreeTimeView } from "@/components/schedule/free-time-view";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 
 async function FreeTimeContent({
   searchParams,
@@ -27,6 +27,7 @@ async function FreeTimeContent({
 
   return (
     <FreeTimeView
+      key={bundle.activeSemester?.id ?? "none"}
       semester={bundle.activeSemester}
       sections={bundle.sections}
       entries={bundle.entries}

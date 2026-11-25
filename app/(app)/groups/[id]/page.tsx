@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { getGroupDashboardBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { GroupDashboardView } from "@/components/group-dashboard-view";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { GroupDashboardView } from "@/components/schedule/group-dashboard-view";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 
 async function GroupDashboardContent({
   params,
@@ -35,6 +35,7 @@ async function GroupDashboardContent({
 
   return (
     <GroupDashboardView
+      key={bundle.activeSemester?.id ?? "none"}
       group={bundle.group}
       semester={bundle.activeSemester}
       semesterParam={resolvedSearch.semester ?? null}

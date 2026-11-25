@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
 import { getProfileBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { ProfileView } from "@/components/profile-view";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { ProfileView } from "@/components/profile/profile-view";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 
 async function ProfileContent({
   searchParams,

@@ -19,6 +19,38 @@ import type {
 } from "./types";
 import { sortGradeTerms } from "./grades-utils";
 import { sortSections } from "./academic-catalog";
+import { resolveActiveSemester } from "./schedule-utils";
+
+type RawGradeEntryRow = Omit<GradeEntry, "units"> & {
+  units: number | string;
+};
+
+function isMissingTableError(error: { code?: string } | null): boolean {
+  return error?.code === "42P01" || error?.code === "PGRST205";
+}
+
+function assembleGradeTerms(
+  termsData: GradeTerm[] | null,
+  entriesData: RawGradeEntryRow[] | null
+): GradeTermWithEntries[] {
+  const entriesByTerm = new Map<string, GradeEntry[]>();
+  for (const raw of entriesData ?? []) {
+    const entry: GradeEntry = {
+      ...raw,
+      units: Number(raw.units),
+    };
+    const list = entriesByTerm.get(entry.term_id) ?? [];
+    list.push(entry);
+    entriesByTerm.set(entry.term_id, list);
+  }
+
+  return sortGradeTerms(
+    (termsData ?? []).map((term) => ({
+      ...term,
+      entries: entriesByTerm.get(term.id) ?? [],
+    }))
+  );
+}
 
 export interface ShellData {
   semesters: Semester[];
@@ -40,9 +72,9 @@ export async function getShellData(): Promise<ShellData> {
   const supabase = await createClient();
 
   const [
-    { data: semestersData },
-    { data: groupsData },
-    { data: groupMembersData },
+    { data: semestersData, error: semestersError },
+    { data: groupsData, error: groupsError },
+    { data: groupMembersData, error: groupMembersError },
   ] = await Promise.all([
     supabase
       .from("semesters")
@@ -59,6 +91,19 @@ export async function getShellData(): Promise<ShellData> {
       .from("visibility_group_members")
       .select("group_id, user_id, role_label"),
   ]);
+
+  if (semestersError) {
+    console.error("[getShellData] semesters query failed:", semestersError.message);
+  }
+  if (groupsError && !isMissingTableError(groupsError)) {
+    console.error("[getShellData] visibility_groups query failed:", groupsError.message);
+  }
+  if (groupMembersError && !isMissingTableError(groupMembersError)) {
+    console.error(
+      "[getShellData] visibility_group_members query failed:",
+      groupMembersError.message
+    );
+  }
 
   const semesters = (semestersData ?? []) as Semester[];
 
@@ -132,7 +177,7 @@ export async function getScheduleBundle(
 
   const supabase = await createClient();
 
-  const [shell, { data: profilesData }] = await Promise.all([
+  const [shell, { data: profilesData, error: profilesError }] = await Promise.all([
     getShellData(),
     supabase
       .from("profiles")
@@ -140,17 +185,13 @@ export async function getScheduleBundle(
       .order("display_name", { ascending: true }),
   ]);
 
+  if (profilesError) {
+    console.error("[getScheduleBundle] profiles query failed:", profilesError.message);
+  }
+
   const { semesters, visibilityGroups } = shell;
   const profiles = (profilesData ?? []) as Profile[];
-
-  const activeSemester =
-    (requestedSemesterId
-      ? semesters.find((s) => s.id === requestedSemesterId)
-      : undefined) ??
-    semesters.find((s) => s.is_active) ??
-    semesters.find((s) => !s.is_archived) ??
-    semesters[0] ??
-    null;
+  const activeSemester = resolveActiveSemester(semesters, requestedSemesterId);
 
   if (!activeSemester) {
     return {
@@ -163,11 +204,15 @@ export async function getScheduleBundle(
     };
   }
 
-  const { data: sectionsData } = await supabase
+  const { data: sectionsData, error: sectionsError } = await supabase
     .from("sections")
     .select("*")
     .eq("semester_id", activeSemester.id)
     .order("code", { ascending: true });
+
+  if (sectionsError) {
+    console.error("[getScheduleBundle] sections query failed:", sectionsError.message);
+  }
 
   const rawSections = sectionsData ?? [];
   const sectionIds = rawSections.map((s) => s.id);
@@ -183,7 +228,10 @@ export async function getScheduleBundle(
     };
   }
 
-  const [{ data: membersData }, { data: entriesData }] = await Promise.all([
+  const [
+    { data: membersData, error: membersError },
+    { data: entriesData, error: entriesError },
+  ] = await Promise.all([
     supabase
       .from("section_members")
       .select("section_id, user_id")
@@ -195,6 +243,19 @@ export async function getScheduleBundle(
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true }),
   ]);
+
+  if (membersError) {
+    console.error(
+      "[getScheduleBundle] section_members query failed:",
+      membersError.message
+    );
+  }
+  if (entriesError) {
+    console.error(
+      "[getScheduleBundle] schedule_entries query failed:",
+      entriesError.message
+    );
+  }
 
   const profileMap = new Map(profiles.map((p) => [p.id, p]));
   const membersBySection = new Map<
@@ -323,23 +384,9 @@ export async function getGradesBundle(
   ]);
 
   const { semesters, visibilityGroups } = shell;
+  const activeSemester = resolveActiveSemester(semesters, requestedSemesterId);
 
-  const activeSemester =
-    (requestedSemesterId
-      ? semesters.find((s) => s.id === requestedSemesterId)
-      : undefined) ??
-    semesters.find((s) => s.is_active) ??
-    semesters.find((s) => !s.is_archived) ??
-    semesters[0] ??
-    null;
-
-  const missingTable =
-    termsError?.code === "42P01" ||
-    entriesError?.code === "42P01" ||
-    termsError?.code === "PGRST205" ||
-    entriesError?.code === "PGRST205";
-
-  if (missingTable) {
+  if (isMissingTableError(termsError) || isMissingTableError(entriesError)) {
     return {
       semesters,
       activeSemester,
@@ -349,24 +396,9 @@ export async function getGradesBundle(
     };
   }
 
-  const entriesByTerm = new Map<string, GradeEntry[]>();
-  for (const raw of (entriesData ?? []) as (Omit<GradeEntry, "units"> & {
-    units: number | string;
-  })[]) {
-    const entry: GradeEntry = {
-      ...raw,
-      units: Number(raw.units),
-    };
-    const list = entriesByTerm.get(entry.term_id) ?? [];
-    list.push(entry);
-    entriesByTerm.set(entry.term_id, list);
-  }
-
-  const gradeTerms = sortGradeTerms(
-    ((termsData ?? []) as GradeTerm[]).map((term) => ({
-      ...term,
-      entries: entriesByTerm.get(term.id) ?? [],
-    }))
+  const gradeTerms = assembleGradeTerms(
+    (termsData ?? null) as GradeTerm[] | null,
+    (entriesData ?? null) as RawGradeEntryRow[] | null
   );
 
   return {
@@ -464,36 +496,16 @@ export async function getProfileBundle(
     : [];
 
   const gradesMigrationRequired =
-    termsError?.code === "42P01" ||
-    gradeEntriesError?.code === "42P01" ||
-    termsError?.code === "PGRST205" ||
-    gradeEntriesError?.code === "PGRST205";
+    isMissingTableError(termsError) || isMissingTableError(gradeEntriesError);
 
-  let gradeTerms: GradeTermWithEntries[] = [];
-  if (!gradesMigrationRequired) {
-    const entriesByTerm = new Map<string, GradeEntry[]>();
-    for (const raw of (gradeEntriesData ?? []) as (Omit<GradeEntry, "units"> & {
-      units: number | string;
-    })[]) {
-      const entry: GradeEntry = {
-        ...raw,
-        units: Number(raw.units),
-      };
-      const list = entriesByTerm.get(entry.term_id) ?? [];
-      list.push(entry);
-      entriesByTerm.set(entry.term_id, list);
-    }
+  const gradeTerms = gradesMigrationRequired
+    ? []
+    : assembleGradeTerms(
+        (termsData ?? null) as GradeTerm[] | null,
+        (gradeEntriesData ?? null) as RawGradeEntryRow[] | null
+      );
 
-    gradeTerms = sortGradeTerms(
-      ((termsData ?? []) as GradeTerm[]).map((term) => ({
-        ...term,
-        entries: entriesByTerm.get(term.id) ?? [],
-      }))
-    );
-  }
-
-  const requestsMigrationRequired =
-    requestsError?.code === "42P01" || requestsError?.code === "PGRST205";
+  const requestsMigrationRequired = isMissingTableError(requestsError);
 
   const changeRequests = requestsMigrationRequired
     ? []
@@ -538,8 +550,14 @@ export async function getAdminProfileChangeRequests(
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error?.code === "42P01" || error?.code === "PGRST205") {
+  if (isMissingTableError(error)) {
     return { requests: [], migrationRequired: true };
+  }
+  if (error) {
+    console.error(
+      "[getAdminProfileChangeRequests] query failed:",
+      error.message
+    );
   }
 
   const profileMap = new Map(profiles.map((p) => [p.id, p]));
