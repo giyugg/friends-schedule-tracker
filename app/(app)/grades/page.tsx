@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
 import { getGradesBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { GradesView } from "@/components/grades-view";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { GradesView } from "@/components/grades/grades-view";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 
 async function GradesContent({
   searchParams,

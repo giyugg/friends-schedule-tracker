@@ -2,9 +2,9 @@ import { Suspense, type ReactNode } from "react";
 import { requireProfile } from "@/lib/auth";
 import { getPendingProfileRequestsCount, getShellData } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { AppShell } from "@/components/app-shell";
-import { PageSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { AppShell } from "@/components/layout/app-shell";
+import { PageSkeleton } from "@/components/layout/page-skeleton";
 
 async function AppShellLoader({ children }: { children: ReactNode }) {
   if (!isSupabaseConfigured()) {

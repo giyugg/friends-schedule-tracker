@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { CalendarDays, Eye, EyeOff, Loader2, Moon, Sun } from "lucide-react";
 import { loginAction, type AuthActionState } from "@/app/actions/auth";
-import { useTheme } from "./theme-provider";
+import { useTheme } from "@/components/layout/theme-provider";
 
 const initialState: AuthActionState = {};
 

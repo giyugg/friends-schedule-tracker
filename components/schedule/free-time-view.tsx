@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, Clock, Coffee, MapPin, Radio, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Building2,
+  CheckCircle2,
+  Clock,
+  Coffee,
+  MapPin,
+  Radio,
+  Users,
+} from "lucide-react";
 import {
   computeCommonFreeSlots,
   DAYS,
@@ -11,9 +19,9 @@ import {
   formatTime12h,
   getDefaultDayOfWeek,
   getLiveSectionStatus,
-  getManilaNow,
   TIME_SLOTS,
 } from "@/lib/schedule-utils";
+import { useManilaTime } from "@/lib/use-manila-time";
 import type {
   DayOfWeek,
   ScheduleEntry,
@@ -35,16 +43,11 @@ export function FreeTimeView({
   entries,
   groups = [],
 }: FreeTimeViewProps) {
-  const [manilaNow, setManilaNow] = useState(() => getManilaNow());
+  const manilaNow = useManilaTime();
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getDefaultDayOfWeek);
   const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>(() =>
     sections.map((s) => s.id)
   );
-
-  useEffect(() => {
-    const id = setInterval(() => setManilaNow(getManilaNow()), 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   const entriesBySection = useMemo(() => {
     const map = new Map<string, ScheduleEntry[]>();
@@ -128,7 +131,10 @@ export function FreeTimeView({
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Live status in Philippine Time (Asia/Manila) ·{" "}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">
+              <span
+                suppressHydrationWarning
+                className="font-semibold text-slate-700 dark:text-slate-200"
+              >
                 {manilaNow.timeLabel}
               </span>
             </p>
@@ -336,7 +342,9 @@ export function FreeTimeView({
               >
                 <CheckCircle2
                   className={`h-3.5 w-3.5 ${
-                    checked ? "text-emerald-600 dark:text-emerald-400" : "opacity-30"
+                    checked
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "opacity-30"
                   }`}
                 />
                 <span>

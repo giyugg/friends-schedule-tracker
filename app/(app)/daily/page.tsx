@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
 import { getScheduleBundle } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { DailyGridView } from "@/components/daily-grid-view";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { DailyGridView } from "@/components/schedule/daily-grid-view";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 
 async function DailyContent({
   searchParams,
@@ -27,6 +27,7 @@ async function DailyContent({
 
   return (
     <DailyGridView
+      key={`${bundle.activeSemester?.id ?? "none"}:${params.preset ?? ""}`}
       semester={bundle.activeSemester}
       sections={bundle.sections}
       entries={bundle.entries}

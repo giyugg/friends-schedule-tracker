@@ -38,9 +38,18 @@
 ## Project Structure
 
 ```text
-├── app/                  # Next.js App Router pages, layouts, and server actions
-├── components/           # Client and server UI views, modals, and theme provider
-└── lib/                  # Domain types, academic catalog, GWA & schedule utilities
+├── app/
+│   ├── (app)/            # Authenticated pages (profile, daily, weekly, free-time, grades, groups, admin)
+│   └── actions/          # Server Actions (auth, profile, grades, and domain-scoped admin/ modules)
+├── components/
+│   ├── admin/            # Admin dashboard shell and isolated tab modules
+│   ├── auth/             # Login and password update forms
+│   ├── grades/           # Private grade editor, honors cards, converter, and modals
+│   ├── layout/           # AppShell, sidebar navigation, theme provider, and skeletons
+│   ├── profile/          # Profile cards, live class status, and free-friends directory
+│   └── schedule/         # Shared side-by-side timetable grid and schedule/group views
+├── lib/                  # Domain types, academic catalog, GWA & schedule utilities, cached loaders
+└── tests/                # Native Node test suite for GWA, schedule, and catalog logic
 ```
 
 ---

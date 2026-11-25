@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { HomeIntro } from "@/components/home-intro";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { HomeIntro } from "@/components/layout/home-intro";
 
 async function HomeContent() {
   if (!isSupabaseConfigured()) {

@@ -305,6 +305,7 @@ create table if not exists public.visibility_groups (
 create table if not exists public.visibility_group_members (
   group_id uuid not null references public.visibility_groups(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
+  role_label text,
   created_at timestamptz not null default now(),
   primary key (group_id, user_id)
 );

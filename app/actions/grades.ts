@@ -163,18 +163,21 @@ export async function saveGradeTermEntriesAction(input: {
     });
   }
 
-  const { error: deleteError } = await supabase
+  const { data: existingRows, error: fetchExistingError } = await supabase
     .from("grade_entries")
-    .delete()
+    .select("id")
     .eq("term_id", term.id)
     .eq("user_id", profile.id);
 
-  if (deleteError) {
+  if (fetchExistingError) {
     return {
       ok: false,
-      error: deleteError.message || "Failed to update grade entries.",
+      error:
+        fetchExistingError.message || "Failed to read existing grade entries.",
     };
   }
+
+  const previousIds = (existingRows ?? []).map((r) => r.id);
 
   if (sanitized.length > 0) {
     const { error: insertError } = await supabase
@@ -185,6 +188,23 @@ export async function saveGradeTermEntriesAction(input: {
       return {
         ok: false,
         error: insertError.message || "Failed to save grade entries.",
+      };
+    }
+  }
+
+  if (previousIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("grade_entries")
+      .delete()
+      .in("id", previousIds)
+      .eq("term_id", term.id)
+      .eq("user_id", profile.id);
+
+    if (deleteError) {
+      return {
+        ok: false,
+        error:
+          deleteError.message || "Failed to clean up previous grade entries.",
       };
     }
   }

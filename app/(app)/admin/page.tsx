@@ -8,9 +8,9 @@ import {
   isSupabaseAdminConfigured,
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
-import { SetupRequiredCard } from "@/components/setup-required-card";
-import { AdminDashboard } from "@/components/admin-dashboard";
-import { ContentSkeleton } from "@/components/page-skeleton";
+import { SetupRequiredCard } from "@/components/layout/setup-required-card";
+import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { ContentSkeleton } from "@/components/layout/page-skeleton";
 import { isAdminTab } from "@/lib/types";
 
 async function AdminContent({

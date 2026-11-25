@@ -5,6 +5,7 @@ import type {
   ScheduleCategory,
   ScheduleEntry,
   ScheduleModality,
+  Semester,
 } from "./types";
 
 export const DAYS: { value: DayOfWeek; label: string; short: string }[] = [
@@ -387,4 +388,19 @@ export function getLiveSectionStatus(
   }
 
   return { state: "done" };
+}
+
+export function resolveActiveSemester(
+  semesters: Semester[],
+  requestedSemesterId?: string | null
+): Semester | null {
+  return (
+    (requestedSemesterId
+      ? semesters.find((s) => s.id === requestedSemesterId)
+      : undefined) ??
+    semesters.find((s) => s.is_active) ??
+    semesters.find((s) => !s.is_archived) ??
+    semesters[0] ??
+    null
+  );
 }
