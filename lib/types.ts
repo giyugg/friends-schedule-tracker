@@ -182,7 +182,7 @@ export const ADMIN_TAB_LABELS: Record<AdminTab, string> = {
   schedules: "Schedules",
   sections: "Sections & Rosters",
   directory: "Directory",
-  accounts: "Friend Accounts",
+  accounts: "Accounts",
   requests: "Profile Requests",
   semesters: "Semesters",
 };
