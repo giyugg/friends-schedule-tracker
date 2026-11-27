@@ -727,3 +727,47 @@ export function sortSections<
 >(sections: readonly T[]): T[] {
   return [...sections].sort(compareSections);
 }
+
+export const UNASSIGNED_COLLEGE_GROUP_KEY = "__unassigned_college__";
+
+export interface CollegeSectionGroup<
+  T extends Pick<
+    Section,
+    "code" | "college_code" | "program_code" | "section_name" | "specialization"
+  >,
+> {
+  key: string;
+  label: string;
+  college: AcademicCollege | null;
+  sections: T[];
+}
+
+export function groupSectionsByCollege<
+  T extends Pick<
+    Section,
+    "code" | "college_code" | "program_code" | "section_name" | "specialization"
+  >,
+>(sections: readonly T[]): CollegeSectionGroup<T>[] {
+  const sorted = sortSections(sections);
+  const groups = new Map<string, CollegeSectionGroup<T>>();
+
+  for (const section of sorted) {
+    const info = getSectionAcademicInfo(section);
+    const key = info.college?.code ?? UNASSIGNED_COLLEGE_GROUP_KEY;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.sections.push(section);
+    } else {
+      groups.set(key, {
+        key,
+        label: info.college
+          ? `${info.college.code} — ${info.college.name}`
+          : "Other / Unassigned College",
+        college: info.college,
+        sections: [section],
+      });
+    }
+  }
+
+  return Array.from(groups.values());
+}

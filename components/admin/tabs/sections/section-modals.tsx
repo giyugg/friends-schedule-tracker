@@ -17,7 +17,7 @@ import {
   deleteSectionAction,
   updateSectionAction,
 } from "@/app/actions/admin/sections";
-import type { ActionResult } from "@/app/actions/admin/types";
+import type { RunAdminAction } from "@/app/actions/admin/types";
 import {
   COLLEGES,
   composeSectionCode,
@@ -35,7 +35,7 @@ interface SectionFormModalProps {
   section?: SectionWithMembers | null;
   isPending: boolean;
   onClose: () => void;
-  runAction: (fn: () => Promise<ActionResult>) => void;
+  runAction: RunAdminAction;
 }
 
 export function SectionFormModal({
@@ -74,6 +74,7 @@ export function SectionFormModal({
   const [specialization, setSpecialization] = useState(
     initialValues.specialization
   );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,29 +108,36 @@ export function SectionFormModal({
     e.preventDefault();
     if (!collegeCode || !programCode || !sectionName.trim()) return;
 
-    runAction(async () => {
-      const res =
-        mode === "create"
-          ? await createSectionAction({
-              semesterId: activeSemester.id,
-              collegeCode,
-              programCode,
-              sectionName,
-              specialization,
-            })
-          : await updateSectionAction({
-              id: section!.id,
-              collegeCode,
-              programCode,
-              sectionName,
-              specialization,
-            });
+    setErrorMessage(null);
 
-      if (res.ok) {
-        onClose();
-      }
-      return res;
-    });
+    runAction(
+      async () => {
+        const res =
+          mode === "create"
+            ? await createSectionAction({
+                semesterId: activeSemester.id,
+                collegeCode,
+                programCode,
+                sectionName,
+                specialization,
+              })
+            : await updateSectionAction({
+                id: section!.id,
+                collegeCode,
+                programCode,
+                sectionName,
+                specialization,
+              });
+
+        if (res.ok) {
+          onClose();
+        } else {
+          setErrorMessage(res.error ?? "Something went wrong.");
+        }
+        return res;
+      },
+      { suppressErrorBanner: true }
+    );
   };
 
   return (
@@ -180,6 +188,16 @@ export function SectionFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-200 dark:border-rose-900/80 bg-rose-50 dark:bg-rose-950/60 px-3.5 py-2.5 text-xs font-medium text-rose-700 dark:text-rose-300 flex items-start gap-2"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
               College
@@ -191,6 +209,7 @@ export function SectionFormModal({
                 setCollegeCode(e.target.value);
                 setProgramCode("");
                 setSpecialization("");
+                setErrorMessage(null);
               }}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-rose-400 dark:focus:border-rose-500"
             >
@@ -214,6 +233,7 @@ export function SectionFormModal({
               onChange={(e) => {
                 setProgramCode(e.target.value);
                 setSpecialization("");
+                setErrorMessage(null);
               }}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-rose-400 dark:focus:border-rose-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -238,7 +258,10 @@ export function SectionFormModal({
                 required
                 maxLength={30}
                 value={sectionName}
-                onChange={(e) => setSectionName(e.target.value)}
+                onChange={(e) => {
+                  setSectionName(e.target.value);
+                  setErrorMessage(null);
+                }}
                 placeholder="e.g., 2B-G2, 3A-G1"
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm outline-none focus:border-rose-400 dark:focus:border-rose-500"
               />
@@ -254,7 +277,10 @@ export function SectionFormModal({
                 maxLength={30}
                 list="modal-section-spec-suggestions"
                 value={specialization}
-                onChange={(e) => setSpecialization(e.target.value)}
+                onChange={(e) => {
+                  setSpecialization(e.target.value);
+                  setErrorMessage(null);
+                }}
                 placeholder="e.g., DBA, WMD, BA"
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm outline-none focus:border-rose-400 dark:focus:border-rose-500"
               />
@@ -278,7 +304,10 @@ export function SectionFormModal({
                   <button
                     key={spec}
                     type="button"
-                    onClick={() => setSpecialization(active ? "" : spec)}
+                    onClick={() => {
+                      setSpecialization(active ? "" : spec);
+                      setErrorMessage(null);
+                    }}
                     className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition cursor-pointer ${
                       active
                         ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white"
@@ -367,7 +396,7 @@ interface DeleteSectionModalProps {
   entryCount: number;
   isPending: boolean;
   onClose: () => void;
-  runAction: (fn: () => Promise<ActionResult>) => void;
+  runAction: RunAdminAction;
 }
 
 export function DeleteSectionModal({
@@ -377,6 +406,8 @@ export function DeleteSectionModal({
   onClose,
   runAction,
 }: DeleteSectionModalProps) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isPending) onClose();
@@ -436,6 +467,16 @@ export function DeleteSectionModal({
             </button>
           </div>
 
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-200 dark:border-rose-900/80 bg-rose-50 dark:bg-rose-950/60 px-3.5 py-2.5 text-xs font-medium text-rose-700 dark:text-rose-300 flex items-start gap-2"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             This permanently deletes the section from the semester. Review what
             will be affected before continuing:
@@ -479,13 +520,21 @@ export function DeleteSectionModal({
             <button
               type="button"
               disabled={isPending}
-              onClick={() =>
-                runAction(async () => {
-                  const res = await deleteSectionAction(section.id);
-                  if (res.ok) onClose();
-                  return res;
-                })
-              }
+              onClick={() => {
+                setErrorMessage(null);
+                runAction(
+                  async () => {
+                    const res = await deleteSectionAction(section.id);
+                    if (res.ok) {
+                      onClose();
+                    } else {
+                      setErrorMessage(res.error ?? "Something went wrong.");
+                    }
+                    return res;
+                  },
+                  { suppressErrorBanner: true }
+                );
+              }}
               className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isPending ? (

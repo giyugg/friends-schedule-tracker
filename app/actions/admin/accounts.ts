@@ -126,6 +126,8 @@ export async function updateFriendProfileAction(input: {
   userId: string;
   displayName: string;
   role: UserRole;
+  semesterId?: string;
+  sectionId?: string | null;
 }): Promise<ActionResult> {
   const adminProfile = await requireAdmin();
   const displayName = input.displayName.trim();
@@ -142,6 +144,49 @@ export async function updateFriendProfileAction(input: {
     .eq("id", input.userId);
 
   if (error) return { ok: false, error: error.message };
+
+  if (input.semesterId && input.sectionId !== undefined) {
+    const targetSectionId = input.sectionId?.trim() || null;
+    const { data: semesterSections, error: sectionsError } = await supabase
+      .from("sections")
+      .select("id")
+      .eq("semester_id", input.semesterId);
+
+    if (sectionsError) return { ok: false, error: sectionsError.message };
+
+    const semesterSectionIds = (semesterSections ?? []).map((s) => s.id);
+    if (targetSectionId && !semesterSectionIds.includes(targetSectionId)) {
+      return {
+        ok: false,
+        error: "Selected section does not belong to the active semester.",
+      };
+    }
+
+    const idsToRemove = targetSectionId
+      ? semesterSectionIds.filter((id) => id !== targetSectionId)
+      : semesterSectionIds;
+
+    if (idsToRemove.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("section_members")
+        .delete()
+        .eq("user_id", input.userId)
+        .in("section_id", idsToRemove);
+
+      if (deleteError) return { ok: false, error: deleteError.message };
+    }
+
+    if (targetSectionId) {
+      const { error: upsertError } = await supabase
+        .from("section_members")
+        .upsert({
+          section_id: targetSectionId,
+          user_id: input.userId,
+        });
+
+      if (upsertError) return { ok: false, error: upsertError.message };
+    }
+  }
 
   revalidateAccounts();
   return { ok: true, message: "Profile updated." };

@@ -11,7 +11,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import type { ActionResult } from "@/app/actions/admin/types";
+import type { RunAdminAction } from "@/app/actions/admin/types";
 import {
   ADMIN_TAB_LABELS,
   isAdminTab,
@@ -83,17 +83,19 @@ export function AdminDashboard({
     text: string;
   } | null>(null);
 
-  const runAction = (fn: () => Promise<ActionResult>) => {
+  const runAction: RunAdminAction = (fn, options) => {
     const actionTab = tab;
     setFeedback(null);
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        setFeedback({
-          tab: actionTab,
-          type: "error",
-          text: res.error ?? "Something went wrong.",
-        });
+        if (!options?.suppressErrorBanner) {
+          setFeedback({
+            tab: actionTab,
+            type: "error",
+            text: res.error ?? "Something went wrong.",
+          });
+        }
       } else if (res.message) {
         setFeedback({ tab: actionTab, type: "success", text: res.message });
       }
@@ -183,6 +185,7 @@ export function AdminDashboard({
       {tab === "accounts" && (
         <AccountsTab
           currentAdminId={currentAdminId}
+          activeSemester={activeSemester}
           profiles={profiles}
           sections={sections}
           hasServiceRoleKey={hasServiceRoleKey}

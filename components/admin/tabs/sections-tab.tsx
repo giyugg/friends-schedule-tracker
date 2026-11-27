@@ -10,7 +10,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { ActionResult } from "@/app/actions/admin/types";
+import type { RunAdminAction } from "@/app/actions/admin/types";
 import {
   COLLEGES,
   getCollegeTheme,
@@ -38,7 +38,7 @@ interface SectionsTabProps {
   entries: ScheduleEntry[];
   profiles: Profile[];
   isPending: boolean;
-  runAction: (fn: () => Promise<ActionResult>) => void;
+  runAction: RunAdminAction;
 }
 
 export function SectionsTab({
