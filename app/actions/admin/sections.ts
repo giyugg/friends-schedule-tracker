@@ -185,12 +185,97 @@ export async function toggleSectionMemberAction(input: {
   await requireAdmin();
   const supabase = await createClient();
 
+  const [
+    { data: targetSection, error: sectionError },
+    { data: targetProfile },
+  ] = await Promise.all([
+    supabase
+      .from("sections")
+      .select("id, code, semester_id")
+      .eq("id", input.sectionId)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", input.userId)
+      .maybeSingle(),
+  ]);
+
+  if (sectionError || !targetSection) {
+    return {
+      ok: false,
+      error: sectionError?.message ?? "Target section not found.",
+    };
+  }
+
+  const friendName = targetProfile?.display_name ?? "Friend";
+
   if (input.assign) {
+    // Enforce 1 section per friend per semester: check sibling sections in the same semester
+    const { data: semesterSections, error: semSectionsError } = await supabase
+      .from("sections")
+      .select("id, code")
+      .eq("semester_id", targetSection.semester_id);
+
+    if (semSectionsError) {
+      return { ok: false, error: semSectionsError.message };
+    }
+
+    const siblingSections = (semesterSections ?? []).filter(
+      (sec) => sec.id !== input.sectionId
+    );
+    const siblingIds = siblingSections.map((sec) => sec.id);
+
+    let movedFromCodes: string[] = [];
+
+    if (siblingIds.length > 0) {
+      const { data: existingRows, error: existingError } = await supabase
+        .from("section_members")
+        .select("section_id")
+        .eq("user_id", input.userId)
+        .in("section_id", siblingIds);
+
+      if (existingError) {
+        return { ok: false, error: existingError.message };
+      }
+
+      const previousIds = (existingRows ?? []).map((row) => row.section_id);
+      if (previousIds.length > 0) {
+        const codeById = new Map(siblingSections.map((s) => [s.id, s.code]));
+        movedFromCodes = previousIds
+          .map((id) => codeById.get(id))
+          .filter((code): code is string => Boolean(code));
+
+        const { error: deletePrevError } = await supabase
+          .from("section_members")
+          .delete()
+          .eq("user_id", input.userId)
+          .in("section_id", previousIds);
+
+        if (deletePrevError) {
+          return { ok: false, error: deletePrevError.message };
+        }
+      }
+    }
+
     const { error } = await supabase.from("section_members").upsert({
       section_id: input.sectionId,
       user_id: input.userId,
     });
     if (error) return { ok: false, error: error.message };
+
+    revalidateSections();
+
+    if (movedFromCodes.length > 0) {
+      return {
+        ok: true,
+        message: `Moved ${friendName} from ${movedFromCodes.join(", ")} to ${targetSection.code}.`,
+      };
+    }
+    return {
+      ok: true,
+      message: `Added ${friendName} to ${targetSection.code}.`,
+    };
   } else {
     const { error } = await supabase
       .from("section_members")
@@ -198,8 +283,11 @@ export async function toggleSectionMemberAction(input: {
       .eq("section_id", input.sectionId)
       .eq("user_id", input.userId);
     if (error) return { ok: false, error: error.message };
-  }
 
-  revalidateSections();
-  return { ok: true };
+    revalidateSections();
+    return {
+      ok: true,
+      message: `Removed ${friendName} from ${targetSection.code}.`,
+    };
+  }
 }

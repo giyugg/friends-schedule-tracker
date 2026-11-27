@@ -30,6 +30,7 @@ interface SchedulesTabProps {
   activeSemester: Semester | null;
   sections: SectionWithMembers[];
   entries: ScheduleEntry[];
+  initialSectionId?: string;
   isPending: boolean;
   runAction: (fn: () => Promise<ActionResult>) => void;
 }
@@ -38,10 +39,15 @@ export function SchedulesTab({
   activeSemester,
   sections,
   entries,
+  initialSectionId,
   isPending,
   runAction,
 }: SchedulesTabProps) {
-  const [schedSectionId, setSchedSectionId] = useState(sections[0]?.id ?? "");
+  const [schedSectionId, setSchedSectionId] = useState(() =>
+    initialSectionId && sections.some((s) => s.id === initialSectionId)
+      ? initialSectionId
+      : (sections[0]?.id ?? "")
+  );
   const [schedDay, setSchedDay] = useState<DayOfWeek>(1);
   const [editingEntryId, setEditingEntryId] = useState<string | undefined>();
   const [courseCode, setCourseCode] = useState("");

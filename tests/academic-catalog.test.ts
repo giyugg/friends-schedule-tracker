@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   composeSectionCode,
+  getCollegeTheme,
   getSectionAcademicInfo,
   sortSections,
 } from "../lib/academic-catalog.ts";
@@ -36,5 +37,16 @@ describe("academic-catalog", () => {
     const sorted = sortSections([unassigned, cictSection]);
     assert.equal(sorted[0].code, "BSIS 2B-G2");
     assert.equal(sorted[1].code, "LEGACY 1A");
+  });
+
+  it("returns distinct college themes and falls back cleanly for unassigned sections", () => {
+    const cictTheme = getCollegeTheme("cict");
+    const coeTheme = getCollegeTheme("COE");
+    const fallbackTheme = getCollegeTheme(null);
+
+    assert.ok(cictTheme.badgeClass.includes("indigo"));
+    assert.ok(coeTheme.badgeClass.includes("amber"));
+    assert.notEqual(cictTheme.accentBarClass, coeTheme.accentBarClass);
+    assert.ok(fallbackTheme.badgeClass.includes("amber"));
   });
 });

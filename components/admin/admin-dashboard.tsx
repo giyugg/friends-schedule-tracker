@@ -68,6 +68,8 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
+  const sectionParam = searchParams.get("section");
+  const semesterParam = searchParams.get("semester");
   const defaultTab: AdminTab =
     semesters.length === 0 ? "semesters" : "schedules";
   const tab: AdminTab = isAdminTab(tabParam)
@@ -146,10 +148,11 @@ export function AdminDashboard({
 
       {tab === "schedules" && (
         <SchedulesTab
-          key={activeSemester?.id ?? "none"}
+          key={`${activeSemester?.id ?? "none"}:${sectionParam ?? ""}`}
           activeSemester={activeSemester}
           sections={sections}
           entries={entries}
+          initialSectionId={sectionParam ?? undefined}
           isPending={isPending}
           runAction={runAction}
         />
@@ -158,7 +161,9 @@ export function AdminDashboard({
       {tab === "sections" && (
         <SectionsTab
           activeSemester={activeSemester}
+          requestedSemesterParam={semesterParam ?? undefined}
           sections={sections}
+          entries={entries}
           profiles={profiles}
           isPending={isPending}
           runAction={runAction}
